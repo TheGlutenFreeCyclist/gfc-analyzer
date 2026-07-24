@@ -226,14 +226,26 @@ def analyze():
 
     error = None
     result = None
+    debug = None
     try:
         activities, wellness = fetch_intervals_data()
+        debug = "Attività ricevute dalla API: {}".format(len(activities))
+        if activities:
+            first = activities[0]
+            debug += "\nCampi del primo elemento: " + ", ".join(sorted(first.keys()))
+            debug += "\nEsempio valori: name={}, type={}, moving_time={}, icu_training_load={}".format(
+                first.get("name"), first.get("type"),
+                first.get("moving_time"), first.get("icu_training_load"),
+            )
         summary = build_summary_text(activities, wellness)
         result = ask_claude(summary)
     except requests.HTTPError as e:
         error = f"Errore chiamando un servizio esterno: {e}"
     except Exception as e:
         error = f"Errore imprevisto: {e}"
+
+    if debug:
+        result = "[DEBUG]\n" + debug + "\n\n[ANALISI]\n" + (result or "")
 
     return render_template_string(HOME_PAGE, days=DAYS_BACK, result=result, error=error)
 
