@@ -8,8 +8,7 @@ app = Flask(__name__)
 
 # ---------------------------------------------------------------------------
 # Configurazione: TUTTE queste vengono lette da variabili d'ambiente.
-# Non scrivere MAI qui dentro chiavi o password: si impostano su Render,
-# nella sezione "Environment" del tuo servizio.
+# Non scrivere MAI qui dentro chiavi o password: si impostano su Render.
 # ---------------------------------------------------------------------------
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 SECRET_KEY = os.environ.get("SECRET_KEY", "cambia-questa-chiave")
@@ -22,7 +21,7 @@ app.secret_key = SECRET_KEY
 DAYS_BACK = 14  # quanti giorni di storico analizzare
 
 # ---------------------------------------------------------------------------
-# Pagine HTML semplici, incluse direttamente qui dentro (niente file separati)
+# Pagine HTML
 # ---------------------------------------------------------------------------
 
 LOGIN_PAGE = """
@@ -39,7 +38,7 @@ LOGIN_PAGE = """
     input { width:100%; padding:12px; margin-top:12px; border-radius:8px; border:1px solid #444;
             background:#111; color:#eee; box-sizing:border-box; font-size:16px; }
     button { width:100%; padding:12px; margin-top:16px; border-radius:8px; border:none;
-             background:#e0722f; color:white; font-size:16px; font-weight:600; }
+             background:#e0722f; color:white; font-size:16px; font-weight:600; cursor:pointer; }
     .error { color:#ff6b6b; margin-top:10px; font-size:14px; }
     h1 { font-size:20px; }
   </style>
@@ -69,11 +68,10 @@ HOME_PAGE = """
            margin:0; padding:24px; }
     .wrap { max-width:640px; margin:0 auto; }
     button { padding:14px 20px; border-radius:8px; border:none;
-             background:#e0722f; color:white; font-size:16px; font-weight:600; width:100%; }
+             background:#e0722f; color:white; font-size:16px; font-weight:600; width:100%; cursor:pointer; }
     .result { white-space:pre-wrap; background:#1c1c1c; padding:20px; border-radius:12px;
                margin-top:20px; line-height:1.5; }
-    a.logout { color:#888; font-size:13px; float:right; }
-    .loading { color:#888; margin-top:16px; }
+    a.logout { color:#888; font-size:13px; float:right; text-decoration:none; }
   </style>
 </head>
 <body>
@@ -129,27 +127,40 @@ def fetch_intervals_data():
     newest = date.today().isoformat()
     auth = ("API_KEY", ICU_API_KEY)
 
-    activities_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
-    wellness_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
+    activities_url = (
+        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
+        f"?oldest={oldest}&newest={newest}"
+    )
+    wellness_url = (
+        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
+        f"?oldest={oldest}&newest={newest}"
+    )
 
-    # Passiamo i campi come parametri lista nativi di requests per Intervals.icu
-    field_list = [
-        "id", "start_date_local", "name", "type", "moving_time", 
-        "elapsed_time", "icu_training_load", "icu_weighted_avg_watts", 
-        "average_watts", "icu_average_watts", "average_heartrate"
-    ]
-    
-    act_params = [("oldest", oldest), ("newest", newest)]
-    for f in field_list:
-        act_params.append(("fields", f))
-
-    act_resp = requests.get(activities_url, auth=auth, params=act_params, timeout=30)
+    act_resp = requests.get(activities_url, auth=auth, timeout=30)
     act_resp.raise_for_status()
-    
-    wel_resp = requests.get(wellness_url, auth=auth, params={"oldest": oldest, "newest": newest}, timeout=30)
+    raw_activities = act_resp.json()
+
+    # Per ogni attività recuperata, chiediamo i dettagli completi direttamente dal singolo endpoint dell'attività
+    full_activities = []
+    for a in raw_activities:
+        act_id = a.get("id")
+        if act_id:
+            try:
+                single_act_url = f"https://intervals.icu/api/v1/activity/{act_id}"
+                detail_resp = requests.get(single_act_url, auth=auth, timeout=10)
+                if detail_resp.status_code == 200:
+                    full_activities.append(detail_resp.json())
+                else:
+                    full_activities.append(a)
+            except Exception:
+                full_activities.append(a)
+        else:
+            full_activities.append(a)
+
+    wel_resp = requests.get(wellness_url, auth=auth, timeout=30)
     wel_resp.raise_for_status()
 
-    return act_resp.json(), wel_resp.json()
+    return full_activities, wel_resp.json()
 
 
 def build_summary_text(activities, wellness):
@@ -171,8 +182,8 @@ def build_summary_text(activities, wellness):
             "- {date} | {name} | {type} | durata {dur} min | "
             "carico {load} | potenza media {pwr} | FC media {hr}".format(
                 date=str(a.get("start_date_local", ""))[:10],
-                name=a.get("name", ""),
-                type=a.get("type", ""),
+                name=a.get("name", "Attività"),
+                type=a.get("type", "Cycling"),
                 dur=round(duration_sec / 60),
                 load=a.get("icu_training_load", "n/d"),
                 pwr=power,
