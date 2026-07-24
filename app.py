@@ -148,16 +148,28 @@ def fetch_intervals_data():
 
 def build_summary_text(activities, wellness):
     lines = ["ATTIVITA':"]
+    if not activities:
+        lines.append(
+            "(nessuna attività trovata su Intervals.icu in questo periodo - "
+            "verificare che Zwift/Garmin stiano sincronizzando correttamente)"
+        )
     for a in activities:
+        duration_sec = a.get("moving_time") or a.get("elapsed_time") or 0
+        power = (
+            a.get("icu_weighted_avg_watts")
+            or a.get("average_watts")
+            or a.get("icu_average_watts")
+            or "n/d"
+        )
         lines.append(
             "- {date} | {name} | {type} | durata {dur} min | "
             "carico {load} | potenza media {pwr} | FC media {hr}".format(
                 date=a.get("start_date_local", "")[:10],
                 name=a.get("name", ""),
                 type=a.get("type", ""),
-                dur=round((a.get("moving_time") or 0) / 60),
+                dur=round(duration_sec / 60),
                 load=a.get("icu_training_load", "n/d"),
-                pwr=a.get("icu_average_watts", a.get("average_watts", "n/d")),
+                pwr=power,
                 hr=a.get("average_heartrate", "n/d"),
             )
         )
