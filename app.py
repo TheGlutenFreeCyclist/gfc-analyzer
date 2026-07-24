@@ -129,9 +129,12 @@ def fetch_intervals_data():
     newest = date.today().isoformat()
     auth = ("API_KEY", ICU_API_KEY)
 
+    # Chiediamo esplicitamente i campi necessari per le attività a Intervals.icu
+    fields = "id,start_date_local,name,type,moving_time,elapsed_time,icu_training_load,icu_weighted_avg_watts,average_watts,icu_average_watts,average_heartrate"
+
     activities_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
-        f"?oldest={oldest}&newest={newest}"
+        f"?oldest={oldest}&newest={newest}&fields={fields}"
     )
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
@@ -164,7 +167,7 @@ def build_summary_text(activities, wellness):
         lines.append(
             "- {date} | {name} | {type} | durata {dur} min | "
             "carico {load} | potenza media {pwr} | FC media {hr}".format(
-                date=a.get("start_date_local", "")[:10],
+                date=str(a.get("start_date_local", ""))[:10],
                 name=a.get("name", ""),
                 type=a.get("type", ""),
                 dur=round(duration_sec / 60),
