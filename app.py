@@ -2,7 +2,7 @@ import base64
 import csv
 import io
 import os
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta
 
 import requests
 from flask import Flask, session, request, redirect, url_for, render_template_string
@@ -132,34 +132,39 @@ def get_intervals_headers():
 
 
 def fetch_intervals_data():
-    """Scarica le attività via CSV (che contiene tutti i dettagli) e i dati di benessere via JSON."""
-    oldest = (date.today() - timedelta(days=DAYS_BACK)).isoformat()
-    newest = date.today().isoformat()
+    """Scarica il CSV completo, poi filtra rigorosamente gli ultimi DAYS_BACK giorni."""
+    cutoff_date = date.today() - timedelta(days=DAYS_BACK)
     headers = get_intervals_headers()
 
-    # Scarichiamo il CSV delle attività
-    csv_url = (
-        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities.csv"
-        f"?oldest={oldest}&newest={newest}"
-    )
+    csv_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities.csv"
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
-        f"?oldest={oldest}&newest={newest}"
+        f"?oldest={cutoff_date.isoformat()}&newest={date.today().isoformat()}"
     )
 
     csv_resp = requests.get(csv_url, headers=headers, timeout=30)
     csv_resp.raise_for_status()
 
-    # Parsing del CSV
-    activities = []
-    reader = csv.DictReader(io.StringIO(csv_resp.text))
+    # Usiamo utf-8-sig per rimuovere automaticamente il BOM (\ufeff)
+    csv_text = csv_resp.content.decode("utf-8-sig")
+    
+    filtered_activities = []
+    reader = csv.DictReader(io.StringIO(csv_text))
+    
     for row in reader:
-        activities.append(row)
+        start_str = row.get("start_date_local") or row.get("start_date") or ""
+        if start_str:
+            try:
+                act_date = datetime.strptime(start_str[:10], "%Y-%m-%d").date()
+                if act_date >= cutoff_date:
+                    filtered_activities.append(row)
+            except ValueError:
+                continue
 
     wel_resp = requests.get(wellness_url, headers=headers, timeout=30)
     wel_resp.raise_for_status()
 
-    return activities, wel_resp.json()
+    return filtered_activities, wel_resp.json()
 
 
 def build_summary_text(activities, wellness):
@@ -167,12 +172,10 @@ def build_summary_text(activities, wellness):
     if not activities:
         lines.append("(nessuna attività trovata su Intervals.icu in questo periodo)")
     for a in activities:
-        # Il CSV di Intervals usa intestazioni standard
-        date_str = a.get("start_date_local", "")[:10] or a.get("start_date", "")[:10]
+        date_str = (a.get("start_date_local") or a.get("start_date") or "")[:10]
         name = a.get("name", "Attività")
         act_type = a.get("type", "Cycling")
         
-        # Gestione durata (in secondi o minuti a seconda delle colonne CSV)
         moving_sec = float(a.get("moving_time") or 0)
         dur_min = round(moving_sec / 60) if moving_sec > 0 else a.get("elapsed_time", "n/d")
         
@@ -240,11 +243,12 @@ def analyze():
     debug = None
     try:
         activities, wellness = fetch_intervals_data()
-        debug = ">>> FETCH CSV DIRECT <<<\nAttività ricevute dal CSV: {}".format(len(activities))
+        debug = f">>> FILTRAGGIO ULTIMI {DAYS_BACK} GIORNI <<<\nAttività filtrate negli ultimi {DAYS_BACK} giorni: {len(activities)}"
         if activities:
             first = activities[0]
-            debug += "\nColonne estrapolate dal CSV: " + ", ".join(list(first.keys())[:10])
-            debug += "\nEsempio riga 1: " + str(dict(list(first.items())[:6]))
+            last = activities[-1]
+            debug += f"\nPrima attività nel periodo: {first.get('start_date_local', '')[:10]} - {first.get('name')}"
+            debug += f"\nUltima attività nel periodo: {last.get('start_date_local', '')[:10]} - {last.get('name')}"
 
         summary = build_summary_text(activities, wellness)
         result = ask_claude(summary)
