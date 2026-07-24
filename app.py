@@ -129,21 +129,24 @@ def fetch_intervals_data():
     newest = date.today().isoformat()
     auth = ("API_KEY", ICU_API_KEY)
 
-    # Chiediamo esplicitamente i campi necessari per le attività a Intervals.icu
-    fields = "id,start_date_local,name,type,moving_time,elapsed_time,icu_training_load,icu_weighted_avg_watts,average_watts,icu_average_watts,average_heartrate"
+    activities_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
+    wellness_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
 
-    activities_url = (
-        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
-        f"?oldest={oldest}&newest={newest}&fields={fields}"
-    )
-    wellness_url = (
-        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
-        f"?oldest={oldest}&newest={newest}"
-    )
+    # Passiamo i campi come parametri lista nativi di requests per Intervals.icu
+    field_list = [
+        "id", "start_date_local", "name", "type", "moving_time", 
+        "elapsed_time", "icu_training_load", "icu_weighted_avg_watts", 
+        "average_watts", "icu_average_watts", "average_heartrate"
+    ]
+    
+    act_params = [("oldest", oldest), ("newest", newest)]
+    for f in field_list:
+        act_params.append(("fields", f))
 
-    act_resp = requests.get(activities_url, auth=auth, timeout=30)
+    act_resp = requests.get(activities_url, auth=auth, params=act_params, timeout=30)
     act_resp.raise_for_status()
-    wel_resp = requests.get(wellness_url, auth=auth, timeout=30)
+    
+    wel_resp = requests.get(wellness_url, auth=auth, params={"oldest": oldest, "newest": newest}, timeout=30)
     wel_resp.raise_for_status()
 
     return act_resp.json(), wel_resp.json()
