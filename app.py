@@ -122,14 +122,14 @@ def home():
 
 
 def fetch_intervals_data():
-    """Scarica eventi (attività) e dati di benessere usando l'endpoint /events."""
+    """Scarica attività e benessere senza filtri restrittivi."""
     oldest = (date.today() - timedelta(days=DAYS_BACK)).isoformat()
     newest = date.today().isoformat()
     auth = ("API_KEY", ICU_API_KEY)
 
-    # L'endpoint /events include tutti i dettagli completi delle attività
-    events_url = (
-        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/events"
+    # Chiamata pulita alle attività
+    activities_url = (
+        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
         f"?oldest={oldest}&newest={newest}"
     )
     wellness_url = (
@@ -137,20 +137,14 @@ def fetch_intervals_data():
         f"?oldest={oldest}&newest={newest}"
     )
 
-    ev_resp = requests.get(events_url, auth=auth, timeout=30)
-    ev_resp.raise_for_status()
-    raw_events = ev_resp.json()
-
-    # Filtriamo prendendo solo le attività reali (escludiamo note, gare pianificate future vuote, ecc.)
-    activities = [
-        e for e in raw_events 
-        if e.get("type") == "Activity" or e.get("category") == "WORKOUT" or e.get("moving_time")
-    ]
+    act_resp = requests.get(activities_url, auth=auth, timeout=30)
+    act_resp.raise_for_status()
+    raw_activities = act_resp.json()
 
     wel_resp = requests.get(wellness_url, auth=auth, timeout=30)
     wel_resp.raise_for_status()
 
-    return activities, wel_resp.json()
+    return raw_activities, wel_resp.json()
 
 
 def build_summary_text(activities, wellness):
@@ -161,23 +155,45 @@ def build_summary_text(activities, wellness):
             "verificare che Zwift/Garmin stiano sincronizzando correttamente)"
         )
     for a in activities:
-        duration_sec = a.get("moving_time") or a.get("elapsed_time") or 0
+        # Estrazione flessibile dei campi durata
+        duration_sec = (
+            a.get("moving_time") 
+            or a.get("elapsed_time") 
+            or a.get("icu_recording_time") 
+            or 0
+        )
+        
+        # Estrazione flessibile della potenza
         power = (
             a.get("icu_weighted_avg_watts")
             or a.get("average_watts")
             or a.get("icu_average_watts")
+            or a.get("watts")
             or "n/d"
         )
+
+        # Estrazione del carico (TSS / Training Load)
+        load = (
+            a.get("icu_training_load")
+            or a.get("training_load")
+            or a.get("icu_load")
+            or "n/d"
+        )
+
+        # Estrazione nome e tipo
+        name = a.get("name") or a.get("description") or "Attività"
+        act_type = a.get("type") or a.get("sport") or "VirtualRide"
+
         lines.append(
             "- {date} | {name} | {type} | durata {dur} min | "
             "carico {load} | potenza media {pwr} | FC media {hr}".format(
                 date=str(a.get("start_date_local") or a.get("start_date") or "")[:10],
-                name=a.get("name", "Attività"),
-                type=a.get("type", "Cycling"),
+                name=name,
+                type=act_type,
                 dur=round(duration_sec / 60) if duration_sec else "n/d",
-                load=a.get("icu_training_load", "n/d"),
+                load=load,
                 pwr=power,
-                hr=a.get("average_heartrate", "n/d"),
+                hr=a.get("average_heartrate") or a.get("icu_average_hr") or "n/d",
             )
         )
 
@@ -236,14 +252,17 @@ def analyze():
     debug = None
     try:
         activities, wellness = fetch_intervals_data()
-        debug = ">>> VERSIONE ENDPOINT EVENTS <<<\nAttività ricevute dalla API: {}".format(len(activities))
+        debug = ">>> VERSIONE Dati Estesi Direct <<<\nAttività ricevute dalla API: {}".format(len(activities))
         if activities:
             first = activities[0]
             debug += "\nCampi del primo elemento: " + ", ".join(sorted(first.keys()))
-            debug += "\nEsempio valori: name={}, type={}, moving_time={}, icu_training_load={}".format(
-                first.get("name"), first.get("type"),
-                first.get("moving_time"), first.get("icu_training_load"),
-            )
+            debug += "\nEsempio valori estrapolati:"
+            debug += "\n - moving_time: " + str(first.get("moving_time"))
+            debug += "\n - elapsed_time: " + str(first.get("elapsed_time"))
+            debug += "\n - icu_training_load: " + str(first.get("icu_training_load"))
+            debug += "\n - average_watts: " + str(first.get("average_watts"))
+            debug += "\n - icu_weighted_avg_watts: " + str(first.get("icu_weighted_avg_watts"))
+            
         summary = build_summary_text(activities, wellness)
         result = ask_claude(summary)
     except requests.HTTPError as e:
