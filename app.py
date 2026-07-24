@@ -1,3 +1,4 @@
+import base64
 import os
 from datetime import date, timedelta
 
@@ -7,8 +8,7 @@ from flask import Flask, session, request, redirect, url_for, render_template_st
 app = Flask(__name__)
 
 # ---------------------------------------------------------------------------
-# Configurazione: TUTTE queste vengono lette da variabili d'ambiente.
-# Non scrivere MAI qui dentro chiavi o password: si impostano su Render.
+# Configurazione: variabili lette dall'ambiente Render
 # ---------------------------------------------------------------------------
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 SECRET_KEY = os.environ.get("SECRET_KEY", "cambia-questa-chiave")
@@ -121,13 +121,22 @@ def home():
     return render_template_string(HOME_PAGE, days=DAYS_BACK, result=None, error=None)
 
 
+def get_intervals_headers():
+    """Costruisce l'header di autenticazione Basic codificato esplicitamente in Base64."""
+    credentials = f"API_KEY:{ICU_API_KEY}"
+    encoded = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
+    return {
+        "Authorization": f"Basic {encoded}",
+        "Accept": "application/json",
+    }
+
+
 def fetch_intervals_data():
-    """Scarica attività e benessere senza filtri restrittivi."""
+    """Scarica attività e benessere da Intervals.icu."""
     oldest = (date.today() - timedelta(days=DAYS_BACK)).isoformat()
     newest = date.today().isoformat()
-    auth = ("API_KEY", ICU_API_KEY)
+    headers = get_intervals_headers()
 
-    # Chiamata pulita alle attività
     activities_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
         f"?oldest={oldest}&newest={newest}"
@@ -137,63 +146,37 @@ def fetch_intervals_data():
         f"?oldest={oldest}&newest={newest}"
     )
 
-    act_resp = requests.get(activities_url, auth=auth, timeout=30)
+    act_resp = requests.get(activities_url, headers=headers, timeout=30)
     act_resp.raise_for_status()
-    raw_activities = act_resp.json()
 
-    wel_resp = requests.get(wellness_url, auth=auth, timeout=30)
+    wel_resp = requests.get(wellness_url, headers=headers, timeout=30)
     wel_resp.raise_for_status()
 
-    return raw_activities, wel_resp.json()
+    return act_resp.json(), wel_resp.json()
 
 
 def build_summary_text(activities, wellness):
     lines = ["ATTIVITA':"]
     if not activities:
-        lines.append(
-            "(nessuna attività trovata su Intervals.icu in questo periodo - "
-            "verificare che Zwift/Garmin stiano sincronizzando correttamente)"
-        )
+        lines.append("(nessuna attività trovata su Intervals.icu in questo periodo)")
     for a in activities:
-        # Estrazione flessibile dei campi durata
-        duration_sec = (
-            a.get("moving_time") 
-            or a.get("elapsed_time") 
-            or a.get("icu_recording_time") 
-            or 0
-        )
-        
-        # Estrazione flessibile della potenza
+        duration_sec = a.get("moving_time") or a.get("elapsed_time") or 0
         power = (
             a.get("icu_weighted_avg_watts")
             or a.get("average_watts")
             or a.get("icu_average_watts")
-            or a.get("watts")
             or "n/d"
         )
-
-        # Estrazione del carico (TSS / Training Load)
-        load = (
-            a.get("icu_training_load")
-            or a.get("training_load")
-            or a.get("icu_load")
-            or "n/d"
-        )
-
-        # Estrazione nome e tipo
-        name = a.get("name") or a.get("description") or "Attività"
-        act_type = a.get("type") or a.get("sport") or "VirtualRide"
-
         lines.append(
             "- {date} | {name} | {type} | durata {dur} min | "
             "carico {load} | potenza media {pwr} | FC media {hr}".format(
                 date=str(a.get("start_date_local") or a.get("start_date") or "")[:10],
-                name=name,
-                type=act_type,
+                name=a.get("name", "Attività"),
+                type=a.get("type", "Cycling"),
                 dur=round(duration_sec / 60) if duration_sec else "n/d",
-                load=load,
+                load=a.get("icu_training_load", "n/d"),
                 pwr=power,
-                hr=a.get("average_heartrate") or a.get("icu_average_hr") or "n/d",
+                hr=a.get("average_heartrate", "n/d"),
             )
         )
 
@@ -252,17 +235,14 @@ def analyze():
     debug = None
     try:
         activities, wellness = fetch_intervals_data()
-        debug = ">>> VERSIONE Dati Estesi Direct <<<\nAttività ricevute dalla API: {}".format(len(activities))
+        debug = ">>> FIXED AUTH BASE64 <<<\nAttività ricevute dalla API: {}".format(len(activities))
         if activities:
             first = activities[0]
             debug += "\nCampi del primo elemento: " + ", ".join(sorted(first.keys()))
-            debug += "\nEsempio valori estrapolati:"
-            debug += "\n - moving_time: " + str(first.get("moving_time"))
-            debug += "\n - elapsed_time: " + str(first.get("elapsed_time"))
-            debug += "\n - icu_training_load: " + str(first.get("icu_training_load"))
-            debug += "\n - average_watts: " + str(first.get("average_watts"))
-            debug += "\n - icu_weighted_avg_watts: " + str(first.get("icu_weighted_avg_watts"))
-            
+            debug += "\nEsempio valori: name={}, moving_time={}, watts={}".format(
+                first.get("name"), first.get("moving_time"), first.get("average_watts")
+            )
+
         summary = build_summary_text(activities, wellness)
         result = ask_claude(summary)
     except requests.HTTPError as e:
