@@ -1,8 +1,6 @@
 import base64
-import csv
-import io
 import os
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 
 import requests
 from flask import Flask, session, request, redirect, url_for, render_template_string
@@ -21,10 +19,6 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 app.secret_key = SECRET_KEY
 
 DAYS_BACK = 14
-
-# ---------------------------------------------------------------------------
-# Pagine HTML
-# ---------------------------------------------------------------------------
 
 LOGIN_PAGE = """
 <!doctype html>
@@ -72,7 +66,7 @@ HOME_PAGE = """
     button { padding:14px 20px; border-radius:8px; border:none;
              background:#e0722f; color:white; font-size:16px; font-weight:600; width:100%; cursor:pointer; }
     .result { white-space:pre-wrap; background:#1c1c1c; padding:20px; border-radius:12px;
-               margin-top:20px; line-height:1.5; }
+               margin-top:20px; line-height:1.5; font-family:monospace; font-size:13px; }
     a.logout { color:#888; font-size:13px; float:right; text-decoration:none; }
   </style>
 </head>
@@ -128,109 +122,31 @@ def get_intervals_headers():
     encoded = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
     return {
         "Authorization": f"Basic {encoded}",
+        "Accept": "application/json",
     }
 
 
 def fetch_intervals_data():
-    """Scarica il CSV completo, poi filtra rigorosamente gli ultimi DAYS_BACK giorni."""
-    cutoff_date = date.today() - timedelta(days=DAYS_BACK)
+    oldest = (date.today() - timedelta(days=DAYS_BACK)).isoformat()
+    newest = date.today().isoformat()
     headers = get_intervals_headers()
 
-    csv_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities.csv"
+    activities_url = (
+        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
+        f"?oldest={oldest}&newest={newest}"
+    )
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
-        f"?oldest={cutoff_date.isoformat()}&newest={date.today().isoformat()}"
+        f"?oldest={oldest}&newest={newest}"
     )
 
-    csv_resp = requests.get(csv_url, headers=headers, timeout=30)
-    csv_resp.raise_for_status()
-
-    # Usiamo utf-8-sig per rimuovere automaticamente il BOM (\ufeff)
-    csv_text = csv_resp.content.decode("utf-8-sig")
-    
-    filtered_activities = []
-    reader = csv.DictReader(io.StringIO(csv_text))
-    
-    for row in reader:
-        start_str = row.get("start_date_local") or row.get("start_date") or ""
-        if start_str:
-            try:
-                act_date = datetime.strptime(start_str[:10], "%Y-%m-%d").date()
-                if act_date >= cutoff_date:
-                    filtered_activities.append(row)
-            except ValueError:
-                continue
+    act_resp = requests.get(activities_url, headers=headers, timeout=30)
+    act_resp.raise_for_status()
 
     wel_resp = requests.get(wellness_url, headers=headers, timeout=30)
     wel_resp.raise_for_status()
 
-    return filtered_activities, wel_resp.json()
-
-
-def build_summary_text(activities, wellness):
-    lines = ["ATTIVITA':"]
-    if not activities:
-        lines.append("(nessuna attività trovata su Intervals.icu in questo periodo)")
-    for a in activities:
-        date_str = (a.get("start_date_local") or a.get("start_date") or "")[:10]
-        name = a.get("name", "Attività")
-        act_type = a.get("type", "Cycling")
-        
-        moving_sec = float(a.get("moving_time") or 0)
-        dur_min = round(moving_sec / 60) if moving_sec > 0 else a.get("elapsed_time", "n/d")
-        
-        load = a.get("icu_training_load") or a.get("load") or "n/d"
-        power = a.get("icu_weighted_avg_watts") or a.get("average_watts") or "n/d"
-        hr = a.get("average_heartrate") or "n/d"
-
-        lines.append(
-            f"- {date_str} | {name} | {act_type} | durata {dur_min} min | "
-            f"carico {load} | potenza media {power} | FC media {hr}"
-        )
-
-    lines.append("\nBENESSERE:")
-    for w in wellness:
-        lines.append(
-            "- {date} | FC riposo {rhr} | HRV {hrv} | sonno {sleep} h | peso {weight}".format(
-                date=w.get("id", ""),
-                rhr=w.get("restingHR", "n/d"),
-                hrv=w.get("hrv", "n/d"),
-                sleep=round((w.get("sleepSecs") or 0) / 3600, 1) if w.get("sleepSecs") else "n/d",
-                weight=w.get("weight", "n/d"),
-            )
-        )
-
-    return "\n".join(lines)
-
-
-def ask_claude(summary_text):
-    prompt = (
-        "Sei un coach di ciclismo esperto. L'atleta si allena indoor su Zwift due volte "
-        "al giorno tutti i giorni: seduta Z2 al mattino, e la sera alterna sedute VO2max "
-        "a sedute Z2. Gareggia su strada da marzo a settembre. Analizza i seguenti dati "
-        "delle ultime due settimane ed evidenzia in italiano: 1) come sta andando il carico "
-        "di allenamento, 2) eventuali segnali di affaticamento o necessità di recupero "
-        "(da FC a riposo, HRV, sonno), 3) un suggerimento pratico per i prossimi giorni. "
-        "Sii diretto e sintetico (max 200 parole).\n\n" + summary_text
-    )
-
-    resp = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key": ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        },
-        json={
-            "model": "claude-sonnet-4-6",
-            "max_tokens": 700,
-            "messages": [{"role": "user", "content": prompt}],
-        },
-        timeout=60,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    return "".join(block.get("text", "") for block in data.get("content", []))
+    return act_resp.json(), wel_resp.json()
 
 
 @app.route("/analyze", methods=["POST"])
@@ -240,25 +156,27 @@ def analyze():
 
     error = None
     result = None
-    debug = None
     try:
         activities, wellness = fetch_intervals_data()
-        debug = f">>> FILTRAGGIO ULTIMI {DAYS_BACK} GIORNI <<<\nAttività filtrate negli ultimi {DAYS_BACK} giorni: {len(activities)}"
+        
+        # Ispezioniamo esattamente cosa c'è dentro l'oggetto restituito da Intervals
+        debug_info = f"NUMERO ATTIVITA' RICEVUTE: {len(activities)}\n\n"
         if activities:
-            first = activities[0]
-            last = activities[-1]
-            debug += f"\nPrima attività nel periodo: {first.get('start_date_local', '')[:10]} - {first.get('name')}"
-            debug += f"\nUltima attività nel periodo: {last.get('start_date_local', '')[:10]} - {last.get('name')}"
+            import json
+            # Stampiamo per intero la PRIMA e l'ULTIMA attività ricevute
+            debug_info += "=== PRIMA ATTIVITA' (JSON GREZZO) ===\n"
+            debug_info += json.dumps(activities[0], indent=2)
+            debug_info += "\n\n=== ULTIMA ATTIVITA' (JSON GREZZO) ===\n"
+            debug_info += json.dumps(activities[-1], indent=2)
+        else:
+            debug_info += "Nessuna attività ricevuta nel range."
 
-        summary = build_summary_text(activities, wellness)
-        result = ask_claude(summary)
+        result = debug_info
+
     except requests.HTTPError as e:
         error = f"Errore chiamando un servizio esterno: {e}"
     except Exception as e:
         error = f"Errore imprevisto: {e}"
-
-    if debug:
-        result = "[DEBUG]\n" + debug + "\n\n[ANALISI]\n" + (result or "")
 
     return render_template_string(HOME_PAGE, days=DAYS_BACK, result=result, error=error)
 
