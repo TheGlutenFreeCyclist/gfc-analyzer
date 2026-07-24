@@ -1,4 +1,6 @@
 import base64
+import csv
+import io
 import os
 from datetime import date, timedelta
 
@@ -8,7 +10,7 @@ from flask import Flask, session, request, redirect, url_for, render_template_st
 app = Flask(__name__)
 
 # ---------------------------------------------------------------------------
-# Configurazione: variabili lette dall'ambiente Render
+# Configurazione
 # ---------------------------------------------------------------------------
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 SECRET_KEY = os.environ.get("SECRET_KEY", "cambia-questa-chiave")
@@ -18,7 +20,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 app.secret_key = SECRET_KEY
 
-DAYS_BACK = 14  # quanti giorni di storico analizzare
+DAYS_BACK = 14
 
 # ---------------------------------------------------------------------------
 # Pagine HTML
@@ -122,40 +124,42 @@ def home():
 
 
 def get_intervals_headers():
-    """Costruisce l'header di autenticazione Basic codificato esplicitamente in Base64."""
     credentials = f"API_KEY:{ICU_API_KEY}"
     encoded = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
     return {
         "Authorization": f"Basic {encoded}",
-        "Accept": "application/json",
     }
 
 
 def fetch_intervals_data():
-    """Scarica attività richiedendo esplicitamente i campi estesi e i dati di benessere."""
+    """Scarica le attività via CSV (che contiene tutti i dettagli) e i dati di benessere via JSON."""
     oldest = (date.today() - timedelta(days=DAYS_BACK)).isoformat()
     newest = date.today().isoformat()
     headers = get_intervals_headers()
 
-    # Richiediamo esplicitamente i campi necessari nell'URL
-    fields = "id,start_date_local,name,type,moving_time,elapsed_time,icu_training_load,icu_weighted_avg_watts,average_watts,average_heartrate"
-    
-    activities_url = (
-        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
-        f"?oldest={oldest}&newest={newest}&fields={fields}"
+    # Scarichiamo il CSV delle attività
+    csv_url = (
+        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities.csv"
+        f"?oldest={oldest}&newest={newest}"
     )
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
         f"?oldest={oldest}&newest={newest}"
     )
 
-    act_resp = requests.get(activities_url, headers=headers, timeout=30)
-    act_resp.raise_for_status()
+    csv_resp = requests.get(csv_url, headers=headers, timeout=30)
+    csv_resp.raise_for_status()
+
+    # Parsing del CSV
+    activities = []
+    reader = csv.DictReader(io.StringIO(csv_resp.text))
+    for row in reader:
+        activities.append(row)
 
     wel_resp = requests.get(wellness_url, headers=headers, timeout=30)
     wel_resp.raise_for_status()
 
-    return act_resp.json(), wel_resp.json()
+    return activities, wel_resp.json()
 
 
 def build_summary_text(activities, wellness):
@@ -163,23 +167,22 @@ def build_summary_text(activities, wellness):
     if not activities:
         lines.append("(nessuna attività trovata su Intervals.icu in questo periodo)")
     for a in activities:
-        duration_sec = a.get("moving_time") or a.get("elapsed_time") or 0
-        power = (
-            a.get("icu_weighted_avg_watts")
-            or a.get("average_watts")
-            or "n/d"
-        )
+        # Il CSV di Intervals usa intestazioni standard
+        date_str = a.get("start_date_local", "")[:10] or a.get("start_date", "")[:10]
+        name = a.get("name", "Attività")
+        act_type = a.get("type", "Cycling")
+        
+        # Gestione durata (in secondi o minuti a seconda delle colonne CSV)
+        moving_sec = float(a.get("moving_time") or 0)
+        dur_min = round(moving_sec / 60) if moving_sec > 0 else a.get("elapsed_time", "n/d")
+        
+        load = a.get("icu_training_load") or a.get("load") or "n/d"
+        power = a.get("icu_weighted_avg_watts") or a.get("average_watts") or "n/d"
+        hr = a.get("average_heartrate") or "n/d"
+
         lines.append(
-            "- {date} | {name} | {type} | durata {dur} min | "
-            "carico {load} | potenza media {pwr} | FC media {hr}".format(
-                date=str(a.get("start_date_local") or "")[:10],
-                name=a.get("name", "Attività"),
-                type=a.get("type", "Cycling"),
-                dur=round(duration_sec / 60) if duration_sec else "n/d",
-                load=a.get("icu_training_load", "n/d"),
-                pwr=power,
-                hr=a.get("average_heartrate", "n/d"),
-            )
+            f"- {date_str} | {name} | {act_type} | durata {dur_min} min | "
+            f"carico {load} | potenza media {power} | FC media {hr}"
         )
 
     lines.append("\nBENESSERE:")
@@ -237,13 +240,11 @@ def analyze():
     debug = None
     try:
         activities, wellness = fetch_intervals_data()
-        debug = ">>> FETCH CON CAMPI ESPLICITI FIELDS <<<\nAttività ricevute dalla API: {}".format(len(activities))
+        debug = ">>> FETCH CSV DIRECT <<<\nAttività ricevute dal CSV: {}".format(len(activities))
         if activities:
             first = activities[0]
-            debug += "\nCampi del primo elemento: " + ", ".join(sorted(first.keys()))
-            debug += "\nEsempio valori: name={}, moving_time={}, watts={}".format(
-                first.get("name"), first.get("moving_time"), first.get("average_watts")
-            )
+            debug += "\nColonne estrapolate dal CSV: " + ", ".join(list(first.keys())[:10])
+            debug += "\nEsempio riga 1: " + str(dict(list(first.items())[:6]))
 
         summary = build_summary_text(activities, wellness)
         result = ask_claude(summary)
