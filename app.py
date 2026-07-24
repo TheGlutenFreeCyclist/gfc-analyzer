@@ -132,14 +132,17 @@ def get_intervals_headers():
 
 
 def fetch_intervals_data():
-    """Scarica attività e benessere da Intervals.icu."""
+    """Scarica attività richiedendo esplicitamente i campi estesi e i dati di benessere."""
     oldest = (date.today() - timedelta(days=DAYS_BACK)).isoformat()
     newest = date.today().isoformat()
     headers = get_intervals_headers()
 
+    # Richiediamo esplicitamente i campi necessari nell'URL
+    fields = "id,start_date_local,name,type,moving_time,elapsed_time,icu_training_load,icu_weighted_avg_watts,average_watts,average_heartrate"
+    
     activities_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
-        f"?oldest={oldest}&newest={newest}"
+        f"?oldest={oldest}&newest={newest}&fields={fields}"
     )
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
@@ -164,13 +167,12 @@ def build_summary_text(activities, wellness):
         power = (
             a.get("icu_weighted_avg_watts")
             or a.get("average_watts")
-            or a.get("icu_average_watts")
             or "n/d"
         )
         lines.append(
             "- {date} | {name} | {type} | durata {dur} min | "
             "carico {load} | potenza media {pwr} | FC media {hr}".format(
-                date=str(a.get("start_date_local") or a.get("start_date") or "")[:10],
+                date=str(a.get("start_date_local") or "")[:10],
                 name=a.get("name", "Attività"),
                 type=a.get("type", "Cycling"),
                 dur=round(duration_sec / 60) if duration_sec else "n/d",
@@ -235,7 +237,7 @@ def analyze():
     debug = None
     try:
         activities, wellness = fetch_intervals_data()
-        debug = ">>> FIXED AUTH BASE64 <<<\nAttività ricevute dalla API: {}".format(len(activities))
+        debug = ">>> FETCH CON CAMPI ESPLICITI FIELDS <<<\nAttività ricevute dalla API: {}".format(len(activities))
         if activities:
             first = activities[0]
             debug += "\nCampi del primo elemento: " + ", ".join(sorted(first.keys()))
