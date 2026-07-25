@@ -244,14 +244,20 @@ def analyze():
 
     error = None
     result = None
+    note_debug = None
     try:
         activities, wellness = fetch_intervals_data()
+        if activities and "_note" in activities[0]:
+            note_debug = "NOTA RESTITUITA DA INTERVALS.ICU: " + str(activities[0]["_note"])
         summary = build_summary_text(activities, wellness)
         result = ask_claude(summary)
     except requests.HTTPError as e:
         error = f"Errore chiamando un servizio esterno: {e}"
     except Exception as e:
         error = f"Errore imprevisto: {e}"
+
+    if note_debug:
+        result = "[DEBUG]\n" + note_debug + "\n\n[ANALISI]\n" + (result or "")
 
     return render_template_string(HOME_PAGE, days=DAYS_BACK, result=result, error=error)
 
