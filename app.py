@@ -14,6 +14,12 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-key")
 ICU_API_KEY = os.environ.get("ICU_API_KEY", "")
 ICU_ATHLETE_ID = os.environ.get("ICU_ATHLETE_ID", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+ATHLETE_CONTEXT = os.environ.get(
+    "ATHLETE_CONTEXT",
+    "The athlete trains indoors on Zwift twice a day, every day: a Zone 2 session "
+    "in the morning, and in the evening alternates VO2max sessions with Zone 2 "
+    "sessions. They race outdoors from March to September.",
+)
 
 app.secret_key = SECRET_KEY
 
@@ -423,7 +429,7 @@ def fetch_intervals_data():
         f"?oldest={oldest}&newest={newest}&fields={activities_fields}"
     )
 
-    wellness_fields = "id,restingHR,hrv,sleepSecs,weight,ctl,atl,rampRate"
+    wellness_fields = "id,restingHR,hrv,sleepSecs,weight,ctl,atl,rampRate,comments"
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
         f"?oldest={oldest}&newest={newest}&fields={wellness_fields}"
@@ -523,7 +529,7 @@ def build_data_text(activities, wellness):
 
     lines.append("\nWELLNESS:")
     for w in sorted(wellness, key=lambda x: x.get("id", "")):
-        lines.append(
+        line = (
             "- {date} | RHR {rhr} | HRV {hrv} | sleep {sleep}h | CTL {ctl} | ATL {atl}".format(
                 date=w.get("id", ""),
                 rhr=w.get("restingHR", "n/a"),
@@ -533,18 +539,21 @@ def build_data_text(activities, wellness):
                 atl=round(w["atl"], 1) if w.get("atl") is not None else "n/a",
             )
         )
+        if w.get("comments"):
+            line += " | note: {}".format(w["comments"])
+        lines.append(line)
 
     return "\n".join(lines)
 
 
 def ask_claude(data_text, metrics):
     prompt = (
-        "You are an expert cycling coach. The athlete trains indoors on Zwift twice a day, "
-        "every day: a Zone 2 session in the morning, and in the evening alternates VO2max "
-        "sessions with Zone 2 sessions. They race outdoors from March to September. "
+        "You are an expert cycling coach. {athlete_context} "
         "They currently have Fitness (CTL) = {ctl} [{fitness_zone} zone], "
         "Fatigue (ATL) = {atl} [{fatigue_zone} zone], Form (TSB) = {tsb} [{form_zone} zone]. "
-        "Analyze the following data from the last {days} days.\n\n"
+        "Analyze the following data from the last {days} days. Some wellness entries may "
+        "include a free-text note (e.g. reporting an injury, illness or soreness) — if present, "
+        "factor it explicitly into fatigue_signals and into the recommendation.\n\n"
         "Respond ONLY with valid JSON (no markdown fences, no extra text) with exactly these "
         "keys, each a plain-prose string with no bullet points, no markdown symbols, no line "
         "breaks:\n"
@@ -558,6 +567,7 @@ def ask_claude(data_text, metrics):
         "3-5 days of training, referencing the actual numbers above\n\n"
         "DATA:\n{data_text}"
     ).format(
+        athlete_context=ATHLETE_CONTEXT,
         ctl=metrics["ctl"], fitness_zone=metrics["fitness_zone"],
         atl=metrics["atl"], fatigue_zone=metrics["fatigue_zone"],
         tsb=metrics["tsb"], form_zone=metrics["form_zone"],
