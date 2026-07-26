@@ -1,5 +1,7 @@
 import base64
+import json
 import os
+import statistics
 from datetime import date, timedelta
 
 import requests
@@ -7,50 +9,275 @@ from flask import Flask, session, request, redirect, url_for, render_template_st
 
 app = Flask(__name__)
 
-# ---------------------------------------------------------------------------
-# Configurazione: tutto arriva da variabili d'ambiente impostate su Render.
-# ---------------------------------------------------------------------------
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
-SECRET_KEY = os.environ.get("SECRET_KEY", "cambia-questa-chiave")
+SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-key")
 ICU_API_KEY = os.environ.get("ICU_API_KEY", "")
 ICU_ATHLETE_ID = os.environ.get("ICU_ATHLETE_ID", "")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 app.secret_key = SECRET_KEY
 
-DAYS_BACK = 14  # quanti giorni indietro analizzare
+DAYS_BACK = 20
 
 # ---------------------------------------------------------------------------
-# Pagine HTML
+# Shared CSS
 # ---------------------------------------------------------------------------
+BASE_CSS = """
+@import url('https://fonts.googleapis.com/css2?family=Bayon&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --black: #0a0a0a;
+  --panel: #141414;
+  --white: #f5f5f5;
+  --red: #d81e2c;
+  --red-dim: #7a1017;
+  --green: #3fb95f;
+  --grey-zone: #8a8a8a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--black);
+  color: var(--white);
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+.display {
+  font-family: 'Bayon', sans-serif;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+a { color: var(--white); }
+
+.center-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-box {
+  background: var(--panel);
+  border: 1px solid var(--white);
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+}
+
+.login-box h1 {
+  font-size: 30px;
+  margin: 0 0 24px 0;
+  color: var(--red);
+}
+
+.login-box input {
+  width: 100%;
+  padding: 14px;
+  margin-top: 16px;
+  border: 1px solid var(--white);
+  background: var(--black);
+  color: var(--white);
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+}
+
+.login-box button, .btn {
+  width: 100%;
+  padding: 14px;
+  margin-top: 20px;
+  border: 1px solid var(--red);
+  background: var(--red);
+  color: var(--white);
+  font-family: 'Bayon', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.login-box button:hover, .btn:hover { background: var(--red-dim); }
+
+.error-msg {
+  color: var(--red);
+  margin-top: 14px;
+  font-size: 14px;
+}
+
+.wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 20px 64px 20px;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  color: var(--grey-zone);
+  text-transform: uppercase;
+}
+
+.logout-link {
+  font-size: 13px;
+  color: var(--grey-zone);
+  text-decoration: none;
+}
+
+h1.page-title {
+  font-size: 46px;
+  color: var(--red);
+  margin: 4px 0 6px 0;
+  line-height: 1;
+}
+
+.subtitle {
+  color: var(--grey-zone);
+  margin-bottom: 28px;
+  font-size: 15px;
+}
+
+.section {
+  border: 1px solid var(--white);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.section-title {
+  color: var(--red);
+  font-size: 22px;
+  margin: 0 0 18px 0;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 560px) {
+  .stat-row { grid-template-columns: 1fr; }
+}
+
+.stat-card {
+  border: 1px solid var(--white);
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--grey-zone);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-family: 'Bayon', sans-serif;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.zone-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: 'Bayon', sans-serif;
+  border: 1px solid currentColor;
+}
+
+.zone-green { color: var(--green); }
+.zone-grey  { color: var(--grey-zone); }
+.zone-red   { color: var(--red); }
+
+.prose-card {
+  border: 1px solid var(--white);
+  padding: 18px;
+  margin-bottom: 14px;
+}
+
+.prose-card:last-child { margin-bottom: 0; }
+
+.prose-card h3 {
+  font-family: 'Bayon', sans-serif;
+  color: var(--red);
+  font-size: 16px;
+  margin: 0 0 10px 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.prose-card p {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.recommendation-box {
+  border: 2px solid var(--red);
+  padding: 22px;
+}
+
+.recommendation-box h3 {
+  font-family: 'Bayon', sans-serif;
+  color: var(--red);
+  font-size: 20px;
+  margin: 0 0 12px 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.recommendation-box p {
+  margin: 0;
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+.error-panel {
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 18px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+"""
 
 LOGIN_PAGE = """
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Gluten Free Cyclist - Analisi</title>
-  <style>
-    body { font-family: -apple-system, sans-serif; background:#111; color:#eee;
-           display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
-    .box { background:#1c1c1c; padding:32px; border-radius:12px; width:90%; max-width:340px; }
-    input { width:100%; padding:12px; margin-top:12px; border-radius:8px; border:1px solid #444;
-            background:#111; color:#eee; box-sizing:border-box; font-size:16px; }
-    button { width:100%; padding:12px; margin-top:16px; border-radius:8px; border:none;
-             background:#e0722f; color:white; font-size:16px; font-weight:600; cursor:pointer; }
-    .error { color:#ff6b6b; margin-top:10px; font-size:14px; }
-    h1 { font-size:20px; }
-  </style>
+  <title>The Gluten Free Cyclist - Health Snapshot</title>
+  <style>{{ css }}</style>
 </head>
 <body>
-  <div class="box">
-    <h1>Accesso privato</h1>
-    <form method="post">
-      <input type="password" name="password" placeholder="Password" autofocus required>
-      <button type="submit">Entra</button>
-    </form>
-    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <div class="center-screen">
+    <div class="login-box">
+      <h1 class="display">Private Access</h1>
+      <form method="post">
+        <input type="password" name="password" placeholder="Password" autofocus required>
+        <button type="submit" class="display">Enter</button>
+      </form>
+      {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
+    </div>
   </div>
 </body>
 </html>
@@ -58,32 +285,87 @@ LOGIN_PAGE = """
 
 HOME_PAGE = """
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>The Gluten Free Cyclist - Analisi</title>
-  <style>
-    body { font-family: -apple-system, sans-serif; background:#111; color:#eee;
-           margin:0; padding:24px; }
-    .wrap { max-width:640px; margin:0 auto; }
-    button { padding:14px 20px; border-radius:8px; border:none;
-             background:#e0722f; color:white; font-size:16px; font-weight:600; width:100%; cursor:pointer; }
-    .result { white-space:pre-wrap; background:#1c1c1c; padding:20px; border-radius:12px;
-               margin-top:20px; line-height:1.5; }
-    a.logout { color:#888; font-size:13px; float:right; text-decoration:none; }
-  </style>
+  <title>The Gluten Free Cyclist - Health Snapshot</title>
+  <style>{{ css }}</style>
 </head>
 <body>
   <div class="wrap">
-    <a class="logout" href="{{ url_for('logout') }}">Esci</a>
-    <h1>Analisi allenamento</h1>
-    <p>Ultimi {{ days }} giorni da Intervals.icu, analizzati dall'AI.</p>
+    <div class="top-bar">
+      <span class="eyebrow">The Gluten Free Cyclist</span>
+      <a class="logout-link" href="{{ url_for('logout') }}">Log out</a>
+    </div>
+    <h1 class="page-title display">Health Snapshot</h1>
+    <p class="subtitle">Last {{ days }} days &middot; Intervals.icu data analyzed by AI</p>
+
     <form method="post" action="{{ url_for('analyze') }}">
-      <button type="submit">Analizza i miei dati</button>
+      <button type="submit" class="btn display">Generate Snapshot</button>
     </form>
-    {% if error %}<div class="result">⚠️ {{ error }}</div>{% endif %}
-    {% if result %}<div class="result">{{ result }}</div>{% endif %}
+
+    {% if error %}
+    <div class="error-panel">{{ error }}</div>
+    {% endif %}
+
+    {% if data %}
+    <div class="section">
+      <h2 class="section-title display">Training</h2>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-label">Fitness (CTL)</div>
+          <div class="stat-value">{{ data.ctl }}</div>
+          <div class="zone-badge zone-{{ data.fitness_zone }} display">{{ data.fitness_zone }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Fatigue (ATL)</div>
+          <div class="stat-value">{{ data.atl }}</div>
+          <div class="zone-badge zone-{{ data.fatigue_zone }} display">{{ data.fatigue_zone }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Form (TSB)</div>
+          <div class="stat-value">{{ data.tsb }}</div>
+          <div class="zone-badge zone-{{ data.form_zone }} display">{{ data.form_zone }}</div>
+        </div>
+      </div>
+      <div class="prose-card">
+        <h3>Training Load</h3>
+        <p>{{ data.training_load }}</p>
+      </div>
+      <div class="prose-card">
+        <h3>Training Distribution</h3>
+        <p>{{ data.training_distribution }}</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title display">Health</h2>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-label">Resting HR</div>
+          <div class="stat-value">{{ data.latest_rhr }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">HRV</div>
+          <div class="stat-value">{{ data.latest_hrv }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Sleep</div>
+          <div class="stat-value">{{ data.avg_sleep }}</div>
+        </div>
+      </div>
+      <div class="prose-card">
+        <h3>Fatigue Signals</h3>
+        <p>{{ data.fatigue_signals }}</p>
+      </div>
+    </div>
+
+    <div class="recommendation-box">
+      <h3 class="display">Recommendation</h3>
+      <p>{{ data.recommendation }}</p>
+    </div>
+    {% endif %}
   </div>
 </body>
 </html>
@@ -99,13 +381,13 @@ def login():
     error = None
     if request.method == "POST":
         if not APP_PASSWORD:
-            error = "APP_PASSWORD non configurata sul server."
+            error = "APP_PASSWORD is not configured on the server."
         elif request.form.get("password") == APP_PASSWORD:
             session["logged_in"] = True
             return redirect(url_for("home"))
         else:
-            error = "Password sbagliata."
-    return render_template_string(LOGIN_PAGE, error=error)
+            error = "Incorrect password."
+    return render_template_string(LOGIN_PAGE, error=error, css=BASE_CSS)
 
 
 @app.route("/logout")
@@ -118,7 +400,7 @@ def logout():
 def home():
     if not require_login():
         return redirect(url_for("login"))
-    return render_template_string(HOME_PAGE, days=DAYS_BACK, result=None, error=None)
+    return render_template_string(HOME_PAGE, days=DAYS_BACK, data=None, error=None, css=BASE_CSS)
 
 
 def get_intervals_headers():
@@ -128,16 +410,10 @@ def get_intervals_headers():
 
 
 def fetch_intervals_data():
-    """Scarica attività (JSON, con filtro data + campi espliciti) e dati di benessere."""
     oldest = (date.today() - timedelta(days=DAYS_BACK)).isoformat()
     newest = date.today().isoformat()
     headers = get_intervals_headers()
 
-    # IMPORTANTE: usiamo l'endpoint JSON /activities (non /activities.csv).
-    # Il CSV ignora oldest/newest e restituisce SEMPRE tutto lo storico.
-    # Il JSON invece rispetta il filtro data, e con "fields" chiediamo
-    # esplicitamente i dati che ci servono (di default arriva un record
-    # "minimo" senza nome/potenza/durata).
     activities_fields = (
         "id,name,type,start_date_local,moving_time,elapsed_time,distance,"
         "icu_training_load,icu_weighted_avg_watts,average_watts,average_heartrate"
@@ -146,9 +422,11 @@ def fetch_intervals_data():
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
         f"?oldest={oldest}&newest={newest}&fields={activities_fields}"
     )
+
+    wellness_fields = "id,restingHR,hrv,sleepSecs,weight,ctl,atl,rampRate"
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
-        f"?oldest={oldest}&newest={newest}"
+        f"?oldest={oldest}&newest={newest}&fields={wellness_fields}"
     )
 
     act_resp = requests.get(activities_url, headers=headers, timeout=30)
@@ -157,65 +435,133 @@ def fetch_intervals_data():
     wel_resp.raise_for_status()
 
     activities = act_resp.json()
+    activities = [a for a in activities if a.get("start_date_local", "")[:10] >= oldest]
 
-    # Doppia sicurezza: filtriamo anche lato nostro per data, così anche
-    # se qualcosa a monte cambiasse non rischiamo di riprendere tutto lo storico.
-    activities = [
-        a for a in activities
-        if a.get("start_date_local", "")[:10] >= oldest
-    ]
-
-    return activities, wel_resp.json()
+    wellness = wel_resp.json()
+    return activities, wellness
 
 
-def build_summary_text(activities, wellness):
-    lines = ["ATTIVITA':"]
+def classify_form(tsb):
+    if tsb is None:
+        return "grey"
+    if tsb >= 5:
+        return "green"
+    if tsb <= -10:
+        return "red"
+    return "grey"
+
+
+def classify_fatigue(atl, ctl):
+    if atl is None or ctl is None:
+        return "grey"
+    if ctl == 0:
+        return "grey"
+    ratio = atl / ctl
+    if ratio >= 1.15:
+        return "red"
+    if ratio <= 0.95:
+        return "green"
+    return "grey"
+
+
+def classify_fitness_trend(wellness):
+    ctl_values = [(w.get("id"), w.get("ctl")) for w in wellness if w.get("ctl") is not None]
+    ctl_values.sort(key=lambda x: x[0])
+    if len(ctl_values) < 2:
+        return "grey"
+    change = ctl_values[-1][1] - ctl_values[0][1]
+    if change >= 2:
+        return "green"
+    if change <= -2:
+        return "red"
+    return "grey"
+
+
+def compute_metrics(activities, wellness):
+    sorted_wellness = sorted(wellness, key=lambda w: w.get("id", ""))
+    latest = sorted_wellness[-1] if sorted_wellness else {}
+
+    ctl = latest.get("ctl")
+    atl = latest.get("atl")
+    tsb = round(ctl - atl, 1) if (ctl is not None and atl is not None) else None
+
+    sleep_values = [w["sleepSecs"] / 3600 for w in wellness if w.get("sleepSecs")]
+    avg_sleep = round(statistics.mean(sleep_values), 1) if sleep_values else None
+
+    return {
+        "ctl": round(ctl, 1) if ctl is not None else "n/a",
+        "atl": round(atl, 1) if atl is not None else "n/a",
+        "tsb": tsb if tsb is not None else "n/a",
+        "fitness_zone": classify_fitness_trend(wellness),
+        "fatigue_zone": classify_fatigue(atl, ctl),
+        "form_zone": classify_form(tsb),
+        "latest_rhr": latest.get("restingHR", "n/a"),
+        "latest_hrv": latest.get("hrv", "n/a"),
+        "avg_sleep": f"{avg_sleep}h" if avg_sleep is not None else "n/a",
+    }
+
+
+def build_data_text(activities, wellness):
+    lines = ["ACTIVITIES:"]
     if not activities:
-        lines.append("(nessuna attività trovata su Intervals.icu in questo periodo)")
+        lines.append("(no activities found on Intervals.icu for this period)")
     for a in activities:
         duration_sec = a.get("moving_time") or a.get("elapsed_time") or 0
-        power = (
-            a.get("icu_weighted_avg_watts")
-            or a.get("average_watts")
-            or "n/d"
-        )
+        power = a.get("icu_weighted_avg_watts") or a.get("average_watts") or "n/a"
         lines.append(
-            "- {date} | {name} | {type} | durata {dur} min | "
-            "carico {load} | potenza media {pwr} | FC media {hr}".format(
+            "- {date} | {name} | {type} | {dur} min | load {load} | "
+            "power {pwr} | HR {hr}".format(
                 date=a.get("start_date_local", "")[:10],
                 name=a.get("name", ""),
                 type=a.get("type", ""),
                 dur=round(duration_sec / 60),
-                load=a.get("icu_training_load", "n/d"),
+                load=a.get("icu_training_load", "n/a"),
                 pwr=power,
-                hr=a.get("average_heartrate", "n/d"),
+                hr=a.get("average_heartrate", "n/a"),
             )
         )
 
-    lines.append("\nBENESSERE:")
-    for w in wellness:
+    lines.append("\nWELLNESS:")
+    for w in sorted(wellness, key=lambda x: x.get("id", "")):
         lines.append(
-            "- {date} | FC riposo {rhr} | HRV {hrv} | sonno {sleep} h | peso {weight}".format(
+            "- {date} | RHR {rhr} | HRV {hrv} | sleep {sleep}h | CTL {ctl} | ATL {atl}".format(
                 date=w.get("id", ""),
-                rhr=w.get("restingHR", "n/d"),
-                hrv=w.get("hrv", "n/d"),
-                sleep=round((w.get("sleepSecs") or 0) / 3600, 1) if w.get("sleepSecs") else "n/d",
-                weight=w.get("weight", "n/d"),
+                rhr=w.get("restingHR", "n/a"),
+                hrv=w.get("hrv", "n/a"),
+                sleep=round(w["sleepSecs"] / 3600, 1) if w.get("sleepSecs") else "n/a",
+                ctl=round(w["ctl"], 1) if w.get("ctl") is not None else "n/a",
+                atl=round(w["atl"], 1) if w.get("atl") is not None else "n/a",
             )
         )
 
     return "\n".join(lines)
 
 
-def ask_claude(summary_text):
+def ask_claude(data_text, metrics):
     prompt = (
-        "Sei un coach di ciclismo esperto. L'atleta si allena indoor su Zwift due volte "
-        "al giorno tutti i giorni: seduta Z2 al mattino, e la sera alterna sedute VO2max "
-        "a sedute Z2. Gareggia su strada da marzo a settembre. Analizza i seguenti dati "
-        "delle ultime due settimane ed evidenzia in italiano: 1) come sta andando il carico "
-        "di allenamento, 2) eventuali segnali di affaticamento o necessità di recupero "
-        "(da FC a riposo, HRV, sonno), 3) un suggerimento pratico per i prossimi giorni. "
-        "Sii diretto e sintetico (max 200 parole).\n\n" + summary_text
+        "You are an expert cycling coach. The athlete trains indoors on Zwift twice a day, "
+        "every day: a Zone 2 session in the morning, and in the evening alternates VO2max "
+        "sessions with Zone 2 sessions. They race outdoors from March to September. "
+        "They currently have Fitness (CTL) = {ctl} [{fitness_zone} zone], "
+        "Fatigue (ATL) = {atl} [{fatigue_zone} zone], Form (TSB) = {tsb} [{form_zone} zone]. "
+        "Analyze the following data from the last {days} days.\n\n"
+        "Respond ONLY with valid JSON (no markdown fences, no extra text) with exactly these "
+        "keys, each a plain-prose string with no bullet points, no markdown symbols, no line "
+        "breaks:\n"
+        '- "training_load": 2-3 sentences on how training load and volume have been trending\n'
+        '- "training_distribution": 2-3 sentences identifying whether the training mix looks '
+        "polarized, pyramidal, threshold-heavy or sweetspot-heavy, based on the session types "
+        "and loads shown, with brief reasoning\n"
+        '- "fatigue_signals": 2-3 sentences on resting HR, HRV and sleep trends and what they '
+        "suggest about recovery\n"
+        '- "recommendation": a detailed, specific recommendation (4-6 sentences) for the next '
+        "3-5 days of training, referencing the actual numbers above\n\n"
+        "DATA:\n{data_text}"
+    ).format(
+        ctl=metrics["ctl"], fitness_zone=metrics["fitness_zone"],
+        atl=metrics["atl"], fatigue_zone=metrics["fatigue_zone"],
+        tsb=metrics["tsb"], form_zone=metrics["form_zone"],
+        days=DAYS_BACK, data_text=data_text,
     )
 
     resp = requests.post(
@@ -227,14 +573,21 @@ def ask_claude(summary_text):
         },
         json={
             "model": "claude-sonnet-4-6",
-            "max_tokens": 700,
+            "max_tokens": 900,
             "messages": [{"role": "user", "content": prompt}],
         },
         timeout=60,
     )
     resp.raise_for_status()
-    data = resp.json()
-    return "".join(block.get("text", "") for block in data.get("content", []))
+    resp_data = resp.json()
+    text = "".join(block.get("text", "") for block in resp_data.get("content", []))
+
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[4:]
+    return json.loads(text)
 
 
 @app.route("/analyze", methods=["POST"])
@@ -243,23 +596,21 @@ def analyze():
         return redirect(url_for("login"))
 
     error = None
-    result = None
-    note_debug = None
+    data = None
     try:
         activities, wellness = fetch_intervals_data()
-        if activities and "_note" in activities[0]:
-            note_debug = "NOTA RESTITUITA DA INTERVALS.ICU: " + str(activities[0]["_note"])
-        summary = build_summary_text(activities, wellness)
-        result = ask_claude(summary)
+        metrics = compute_metrics(activities, wellness)
+        data_text = build_data_text(activities, wellness)
+        analysis = ask_claude(data_text, metrics)
+        data = {**metrics, **analysis}
     except requests.HTTPError as e:
-        error = f"Errore chiamando un servizio esterno: {e}"
+        error = f"Error calling an external service: {e}"
+    except (json.JSONDecodeError, KeyError) as e:
+        error = f"The AI response could not be parsed: {e}"
     except Exception as e:
-        error = f"Errore imprevisto: {e}"
+        error = f"Unexpected error: {e}"
 
-    if note_debug:
-        result = "[DEBUG]\n" + note_debug + "\n\n[ANALISI]\n" + (result or "")
-
-    return render_template_string(HOME_PAGE, days=DAYS_BACK, result=result, error=error)
+    return render_template_string(HOME_PAGE, days=DAYS_BACK, data=data, error=error, css=BASE_CSS)
 
 
 if __name__ == "__main__":
