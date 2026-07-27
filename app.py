@@ -213,14 +213,19 @@ a { color: var(--white); }
 .logo-img {
   width: 180px;
   height: auto;
-  margin-bottom: 18px;
+  margin: 0 auto 18px auto;
+  display: block;
+}
+
+.header-center {
+  text-align: center;
 }
 
 .home-logo {
   width: 220px;
   height: auto;
   display: block;
-  margin: 4px 0 16px 0;
+  margin: 4px auto 16px auto;
 }
 
 .login-box {
@@ -446,6 +451,7 @@ LOGIN_PAGE = """
 </head>
 <body>
   <div class="center-screen">
+    <img class="logo-img" src="data:image/png;base64,{{ logo }}" alt="The Gluten Free Cyclist">
     <div class="login-box">
       <h1>Please Log In</h1>
       <form method="post">
@@ -474,9 +480,11 @@ HOME_PAGE = """
       <span class="eyebrow">The Gluten Free Cyclist</span>
       <a class="logout-link" href="{{ url_for('logout') }}">Log out</a>
     </div>
-    <img class="home-logo" src="data:image/png;base64,{{ logo }}" alt="The Gluten Free Cyclist">
-    <h1 class="page-title display">Health Snapshot</h1>
-    <p class="subtitle">Recent window: last {{ days }} days &middot; Season window: last {{ season_days }} days &middot; Intervals.icu data analyzed by AI</p>
+    <div class="header-center">
+      <img class="home-logo" src="data:image/png;base64,{{ logo }}" alt="The Gluten Free Cyclist">
+      <h1 class="page-title display">Health Snapshot</h1>
+      <p class="subtitle">Recent window: last {{ days }} days &middot; Season window: last {{ season_days }} days &middot; Intervals.icu data analyzed by AI</p>
+    </div>
 
     <form method="post" action="{{ url_for('analyze') }}">
       <button type="submit" class="btn display">Generate Snapshot</button>
@@ -589,7 +597,7 @@ def login():
             return redirect(url_for("home"))
         else:
             error = "Incorrect password."
-    return render_template_string(LOGIN_PAGE, error=error, css=BASE_CSS)
+    return render_template_string(LOGIN_PAGE, error=error, css=BASE_CSS, logo=LOGO_B64)
 
 
 @app.route("/logout")
