@@ -721,7 +721,7 @@ def ask_claude(data_text, metrics):
         },
         json={
             "model": "claude-sonnet-4-6",
-            "max_tokens": 1100,
+            "max_tokens": 1500,
             "messages": [{"role": "user", "content": prompt}],
         },
         timeout=60,
@@ -735,7 +735,13 @@ def ask_claude(data_text, metrics):
         text = text.strip("`")
         if text.startswith("json"):
             text = text[4:]
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        preview = text[:300].replace("\n", " ")
+        raise json.JSONDecodeError(
+            f"{e.msg} | raw response preview: {preview}", e.doc, e.pos
+        )
 
 
 @app.route("/analyze", methods=["POST"])
