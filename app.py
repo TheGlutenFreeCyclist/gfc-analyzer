@@ -166,6 +166,77 @@ LOGO_B64 = (
     "SUVORK5CYII="
 )
 
+FAVICON_B64 = (
+    "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"
+    "YII="
+)
+
 # ---------------------------------------------------------------------------
 # Shared CSS
 # ---------------------------------------------------------------------------
@@ -447,6 +518,7 @@ LOGIN_PAGE = """
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>The Gluten Free Cyclist - Health Snapshot</title>
+  <link rel="icon" type="image/png" href="data:image/png;base64,{{ favicon }}">
   <style>{{ css }}</style>
 </head>
 <body>
@@ -472,6 +544,7 @@ HOME_PAGE = """
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>The Gluten Free Cyclist - Health Snapshot</title>
+  <link rel="icon" type="image/png" href="data:image/png;base64,{{ favicon }}">
   <style>{{ css }}</style>
 </head>
 <body>
@@ -597,7 +670,7 @@ def login():
             return redirect(url_for("home"))
         else:
             error = "Incorrect password."
-    return render_template_string(LOGIN_PAGE, error=error, css=BASE_CSS, logo=LOGO_B64)
+    return render_template_string(LOGIN_PAGE, error=error, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64)
 
 
 @app.route("/logout")
@@ -612,7 +685,7 @@ def home():
         return redirect(url_for("login"))
     return render_template_string(
         HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
-        data=None, error=None, css=BASE_CSS, logo=LOGO_B64,
+        data=None, error=None, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
     )
 
 
@@ -919,7 +992,7 @@ def analyze():
 
     return render_template_string(
         HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
-        data=data, error=error, css=BASE_CSS, logo=LOGO_B64,
+        data=data, error=error, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
     )
 
 
