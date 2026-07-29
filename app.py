@@ -509,6 +509,92 @@ h1.page-title {
   margin-bottom: 20px;
   font-size: 14px;
 }
+
+.zone-bar-wrap {
+  margin-bottom: 20px;
+}
+
+.zone-bar {
+  display: flex;
+  height: 26px;
+  border: 1px solid var(--white);
+  overflow: hidden;
+}
+
+.zone-seg {
+  height: 100%;
+  transition: width 1.1s ease-out;
+}
+
+.zone-seg-low  { background: var(--green); }
+.zone-seg-mod  { background: var(--grey-zone); }
+.zone-seg-high { background: var(--red); }
+
+.zone-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--grey-zone);
+  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.zone-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.zone-dot-low  { background: var(--green); }
+.zone-dot-mod  { background: var(--grey-zone); }
+.zone-dot-high { background: var(--red); }
+
+.loading-track {
+  display: none;
+  width: 100%;
+  height: 6px;
+  border: 1px solid var(--white);
+  margin-top: 14px;
+  overflow: hidden;
+  position: relative;
+}
+
+.loading-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 35%;
+  background: var(--red);
+  animation: loadingSlide 1.1s ease-in-out infinite;
+}
+
+@keyframes loadingSlide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(380%); }
+}
+
+.loading-label {
+  display: none;
+  text-align: center;
+  font-size: 13px;
+  color: var(--grey-zone);
+  margin-top: 8px;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.training-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0s; }
+.season-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.15s; }
+.health-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.3s; }
+.recommendation-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.45s; }
 """
 
 LOGIN_PAGE = """
@@ -559,8 +645,12 @@ HOME_PAGE = """
       <p class="subtitle">Recent window: last {{ days }} days &middot; Season window: last {{ season_days }} days &middot; Intervals.icu data analyzed by AI</p>
     </div>
 
-    <form method="post" action="{{ url_for('analyze') }}">
-      <button type="submit" class="btn display">Generate Snapshot</button>
+    <form method="post" action="{{ url_for('analyze') }}" id="snapshot-form">
+      <button type="submit" class="btn display" id="snapshot-btn">Generate Snapshot</button>
+      <div class="loading-track" id="loading-track">
+        <div class="loading-fill"></div>
+      </div>
+      <p class="loading-label" id="loading-label"></p>
     </form>
 
     {% if error %}
@@ -568,22 +658,22 @@ HOME_PAGE = """
     {% endif %}
 
     {% if data %}
-    <div class="section">
+    <div class="section training-section">
       <h2 class="section-title display">Training</h2>
       <div class="stat-row">
         <div class="stat-card">
           <div class="stat-label">Fitness (CTL)</div>
-          <div class="stat-value">{{ data.ctl }}</div>
+          <div class="stat-value" data-animate="{{ data.ctl }}">{{ data.ctl }}</div>
           <div class="zone-badge zone-{{ data.fitness_zone }} display">{{ data.fitness_zone }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Fatigue (ATL)</div>
-          <div class="stat-value">{{ data.atl }}</div>
+          <div class="stat-value" data-animate="{{ data.atl }}">{{ data.atl }}</div>
           <div class="zone-badge zone-{{ data.fatigue_zone }} display">{{ data.fatigue_zone }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Form (TSB)</div>
-          <div class="stat-value">{{ data.tsb }}</div>
+          <div class="stat-value" data-animate="{{ data.tsb }}">{{ data.tsb }}</div>
           <div class="zone-badge zone-{{ data.form_zone }} display">{{ data.form_zone }}</div>
         </div>
       </div>
@@ -593,23 +683,25 @@ HOME_PAGE = """
       </div>
     </div>
 
-    <div class="section">
+    <div class="section season-section">
       <h2 class="section-title display">Season</h2>
       <p class="subtitle" style="margin-bottom:16px;">Based on the last {{ season_days }} days of activity data</p>
-      <div class="stat-row">
+      <div class="stat-row" style="grid-template-columns: 1fr;">
         <div class="stat-card">
           <div class="stat-label">Total Time</div>
-          <div class="stat-value">{{ data.season_hours }}h</div>
+          <div class="stat-value" data-animate="{{ data.season_hours }}h">{{ data.season_hours }}h</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Low Intensity</div>
-          <div class="stat-value">{{ data.zone_low_pct }}%</div>
-          <div class="stat-sub">easy / endurance</div>
+      </div>
+      <div class="zone-bar-wrap">
+        <div class="zone-bar">
+          <div class="zone-seg zone-seg-low" data-width="{{ data.zone_low_pct }}" style="width:0%;"></div>
+          <div class="zone-seg zone-seg-mod" data-width="{{ data.zone_mod_pct }}" style="width:0%;"></div>
+          <div class="zone-seg zone-seg-high" data-width="{{ data.zone_high_pct }}" style="width:0%;"></div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">High Intensity</div>
-          <div class="stat-value">{{ data.zone_high_pct }}%</div>
-          <div class="stat-sub">VO2 / anaerobic</div>
+        <div class="zone-bar-labels">
+          <span><i class="zone-dot zone-dot-low"></i>Low {{ data.zone_low_pct }}%</span>
+          <span><i class="zone-dot zone-dot-mod"></i>Moderate {{ data.zone_mod_pct }}%</span>
+          <span><i class="zone-dot zone-dot-high"></i>High {{ data.zone_high_pct }}%</span>
         </div>
       </div>
       <div class="prose-card">
@@ -622,20 +714,20 @@ HOME_PAGE = """
       </div>
     </div>
 
-    <div class="section">
+    <div class="section health-section">
       <h2 class="section-title display">Health</h2>
       <div class="stat-row">
         <div class="stat-card">
           <div class="stat-label">Resting HR</div>
-          <div class="stat-value">{{ data.latest_rhr }}</div>
+          <div class="stat-value" data-animate="{{ data.latest_rhr }}">{{ data.latest_rhr }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">HRV</div>
-          <div class="stat-value">{{ data.latest_hrv }}</div>
+          <div class="stat-value" data-animate="{{ data.latest_hrv }}">{{ data.latest_hrv }}</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Avg Sleep</div>
-          <div class="stat-value">{{ data.avg_sleep }}</div>
+          <div class="stat-value" data-animate="{{ data.avg_sleep }}">{{ data.avg_sleep }}</div>
         </div>
       </div>
       <div class="prose-card">
@@ -650,6 +742,72 @@ HOME_PAGE = """
     </div>
     {% endif %}
   </div>
+  <script>
+    (function () {
+      var els = document.querySelectorAll('.stat-value[data-animate]');
+      els.forEach(function (el) {
+        var raw = el.getAttribute('data-animate');
+        var match = raw.match(/^(-?\\d+(\\.\\d+)?)(.*)$/);
+        if (!match) return; // non-numeric values (e.g. "n/a") stay as-is
+        var target = parseFloat(match[1]);
+        var decimals = match[2] ? (match[2].length - 1) : 0;
+        var suffix = match[3] || '';
+        var duration = 900;
+        var start = null;
+        el.textContent = (0).toFixed(decimals) + suffix;
+        function step(ts) {
+          if (start === null) start = ts;
+          var p = Math.min((ts - start) / duration, 1);
+          var eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
+          var val = target * eased;
+          el.textContent = val.toFixed(decimals) + suffix;
+          if (p < 1) {
+            requestAnimationFrame(step);
+          } else {
+            el.textContent = target.toFixed(decimals) + suffix;
+          }
+        }
+        requestAnimationFrame(step);
+      });
+
+      // Grow-in animation for the Season zone bar
+      var segs = document.querySelectorAll('.zone-seg[data-width]');
+      if (segs.length) {
+        setTimeout(function () {
+          segs.forEach(function (seg) {
+            seg.style.width = seg.getAttribute('data-width') + '%';
+          });
+        }, 150);
+      }
+
+      // Loading feedback on Generate Snapshot submit
+      var form = document.getElementById('snapshot-form');
+      if (form) {
+        form.addEventListener('submit', function () {
+          var btn = document.getElementById('snapshot-btn');
+          var track = document.getElementById('loading-track');
+          var label = document.getElementById('loading-label');
+          var messages = [
+            'Pulling your Intervals.icu data...',
+            'Crunching fitness, fatigue and form...',
+            'Reviewing the last 90 days...',
+            'Consulting your AI coach...',
+            'Almost there...'
+          ];
+          btn.disabled = true;
+          btn.textContent = 'Analyzing...';
+          track.style.display = 'block';
+          label.style.display = 'block';
+          var i = 0;
+          label.textContent = messages[0];
+          setInterval(function () {
+            i = (i + 1) % messages.length;
+            label.textContent = messages[i];
+          }, 3200);
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
 """
