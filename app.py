@@ -516,9 +516,11 @@ h1.page-title {
 
 .zone-bar {
   display: flex;
-  height: 26px;
+  height: 22px;
   border: 1px solid var(--white);
+  border-radius: 999px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 .zone-seg {
@@ -558,6 +560,7 @@ h1.page-title {
   width: 100%;
   height: 6px;
   border: 1px solid var(--white);
+  border-radius: 999px;
   margin-top: 14px;
   overflow: hidden;
   position: relative;
