@@ -1064,8 +1064,13 @@ def build_data_text(recent_activities, wellness, season_stats):
 
 
 def ask_claude(data_text, metrics):
+    today = date.today()
     prompt = (
-        "You are an expert cycling coach. {athlete_context} "
+        "You are an expert cycling coach. Today's real date is {today_date} ({today_weekday}). "
+        "Use this to correctly name the actual weekday for any date you reference in your "
+        "recommendation (e.g. next Monday, this Friday) — do not infer today's date from the "
+        "data below, it may lag behind by a day or more. "
+        "{athlete_context} "
         "They currently have Fitness (CTL) = {ctl} [{fitness_zone} zone], "
         "Fatigue (ATL) = {atl} [{fatigue_zone} zone], Form (TSB) = {tsb} [{form_zone} zone]. "
         "Analyze the following data. Some wellness entries may include a free-text note "
@@ -1091,6 +1096,7 @@ def ask_claude(data_text, metrics):
         "3-5 days of training, referencing the actual numbers above\n\n"
         "DATA:\n{data_text}"
     ).format(
+        today_date=today.isoformat(), today_weekday=today.strftime("%A"),
         athlete_context=ATHLETE_CONTEXT,
         ctl=metrics["ctl"], fitness_zone=metrics["fitness_zone"],
         atl=metrics["atl"], fatigue_zone=metrics["fatigue_zone"],
