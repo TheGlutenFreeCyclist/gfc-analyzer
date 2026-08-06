@@ -1250,26 +1250,44 @@ def fetch_power_curve_payload():
 
 
 def extract_power_curve_points(payload):
-    """The exact shape of this endpoint's response isn't officially documented,
-    so search defensively for a list of {secs, watts} points anywhere in it
-    rather than assuming one fixed structure."""
-    found = []
+    """The exact shape of this endpoint's response isn't officially documented.
+    The real shape turned out to be a curve object with PARALLEL ARRAYS -
+    e.g. {"secs": [5, 10, 15, ...], "watts": [900, 850, ...]} - rather than a
+    list of {secs, watts} point dicts. Handle that first, and keep the
+    point-list shape as a fallback in case a different curve type (e.g. "all")
+    is structured differently."""
+    array_results = []
+    point_list_results = []
 
     def walk(node):
-        if isinstance(node, list):
+        if isinstance(node, dict):
+            secs = node.get("secs")
+            watts = node.get("watts")
+            if watts is None:
+                watts = node.get("power")
+            if (
+                isinstance(secs, list) and isinstance(watts, list)
+                and len(secs) == len(watts) and len(secs) > 0
+                and isinstance(secs[0], (int, float))
+            ):
+                array_results.append(
+                    [{"secs": s, "watts": w} for s, w in zip(secs, watts) if w]
+                )
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
             if node and all(isinstance(i, dict) for i in node):
                 keys0 = set(node[0].keys())
                 if "secs" in keys0 and ("watts" in keys0 or "power" in keys0):
-                    found.append(node)
-                    return
+                    if isinstance(node[0].get("secs"), (int, float)):
+                        point_list_results.append(node)
             for item in node:
                 walk(item)
-        elif isinstance(node, dict):
-            for v in node.values():
-                walk(v)
 
     walk(payload)
-    return found[0] if found else None
+    if array_results:
+        return max(array_results, key=len)
+    return point_list_results[0] if point_list_results else None
 
 
 def format_duration_label(secs):
