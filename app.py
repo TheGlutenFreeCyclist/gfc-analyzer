@@ -1032,6 +1032,9 @@ HOME_PAGE = """
       </div>
       {% else %}
       <p class="subtitle">Power curve data isn't available right now.</p>
+      {% if data.best_watts_debug %}
+      <p class="subtitle" style="margin-top:10px; word-break:break-all;">[DEBUG] {{ data.best_watts_debug }}</p>
+      {% endif %}
       {% endif %}
     </div>
 
@@ -1306,9 +1309,16 @@ def get_best_watts():
     try:
         payload = fetch_power_curve_payload()
         points = extract_power_curve_points(payload)
-        return best_watts_for_durations(points, [5, 15, 60, 300, 1200, 3600])
-    except Exception:
-        return []
+        result = best_watts_for_durations(points, [5, 15, 60, 300, 1200, 3600])
+        debug = None
+        if not result:
+            preview = json.dumps(payload)[:500]
+            debug = "Power curve payload preview: {}".format(preview)
+        return result, debug
+    except requests.HTTPError as e:
+        return [], "Power curve request failed: {}".format(e)
+    except Exception as e:
+        return [], "Power curve error: {}".format(e)
 
 
 def fetch_intervals_data():
@@ -1728,7 +1738,7 @@ def analyze():
             metrics["form_zone"], metrics["fatigue_zone"], metrics["avg_sleep_hours"]
         )
         recent_trend = compute_recent_trend(wellness, n=5)
-        best_watts = get_best_watts()
+        best_watts, best_watts_debug = get_best_watts()
         recent_calories = sum(a.get("calories") or 0 for a in recent_activities)
         notes = load_notes()
         data_text = build_data_text(recent_activities, wellness, season_stats, notes)
@@ -1738,6 +1748,7 @@ def analyze():
             "recent_calories": round(recent_calories),
             "recent_trend": recent_trend,
             "best_watts": best_watts,
+            "best_watts_debug": best_watts_debug,
         }
         session["last_data"] = data
     except requests.HTTPError as e:
