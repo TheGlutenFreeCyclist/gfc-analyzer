@@ -596,8 +596,9 @@ h1.page-title {
 
 .training-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.1s; }
 .season-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.25s; }
-.health-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.4s; }
-.recommendation-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.55s; }
+.power-section    { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.35s; }
+.health-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.45s; }
+.recommendation-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.6s; }
 
 .energy-bank-card {
   border: 1px solid var(--white);
@@ -704,6 +705,135 @@ h1.page-title {
   font-weight: 600;
   margin-right: 8px;
 }
+
+.trend-row {
+  margin-top: 20px;
+  border-top: 1px solid var(--white);
+  padding-top: 16px;
+}
+
+.trend-bars {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+  height: 70px;
+}
+
+.trend-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.trend-bar-track {
+  width: 100%;
+  max-width: 28px;
+  height: 44px;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--grey-zone);
+}
+
+.trend-bar-fill {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  transition: height 1s ease-out;
+}
+
+.trend-bar-value {
+  font-size: 11px;
+  color: var(--white);
+  margin-top: 6px;
+}
+
+.trend-bar-day {
+  font-size: 10px;
+  color: var(--grey-zone);
+  text-transform: uppercase;
+}
+
+.generate-section {
+  text-align: center;
+}
+
+.pdf-btn {
+  width: 100%;
+  margin-top: 8px;
+  background: transparent;
+  color: var(--white);
+}
+
+.pdf-btn:hover {
+  background: var(--panel);
+}
+
+.power-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.power-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.power-bar-label {
+  width: 44px;
+  font-size: 12px;
+  color: var(--grey-zone);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.power-bar-track {
+  flex: 1;
+  height: 16px;
+  border: 1px solid var(--white);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.power-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--red-dim), var(--red));
+  transition: width 1.1s ease-out;
+}
+
+.power-bar-value {
+  width: 56px;
+  font-size: 13px;
+  font-family: 'Bayon', sans-serif;
+  flex-shrink: 0;
+}
+
+@media print {
+  .no-print, .top-bar, .chat-section, .generate-section, .pdf-btn {
+    display: none !important;
+  }
+  body {
+    background: white;
+    color: black;
+  }
+  .section, .recommendation-box, .energy-bank-card, .stat-card, .prose-card {
+    border-color: black !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    animation: none !important;
+    break-inside: avoid;
+  }
+  .section-title, .page-title, .recommendation-box h3, .energy-bank-label,
+  .zone-badge, .prose-card h3 {
+    color: black !important;
+  }
+  .subtitle, .stat-label, .stat-sub { color: #444 !important; }
+}
 """
 
 LOGIN_PAGE = """
@@ -754,13 +884,41 @@ HOME_PAGE = """
       <p class="subtitle">Recent window: last {{ days }} days &middot; Season window: last {{ season_days }} days &middot; Intervals.icu data analyzed by AI</p>
     </div>
 
-    <form method="post" action="{{ url_for('analyze') }}" id="snapshot-form">
-      <button type="submit" class="btn display" id="snapshot-btn">Generate Snapshot</button>
-      <div class="loading-track" id="loading-track">
-        <div class="loading-fill"></div>
+    <div class="section chat-section">
+      <h2 class="section-title display">Coach Chat</h2>
+      <p class="subtitle" style="margin-bottom:16px;">Before generating the snapshot, is there something you wish your coach would know first?</p>
+      <form method="post" action="{{ url_for('ask') }}" id="chat-form">
+        <input type="text" class="chat-input" name="question" placeholder="e.g. My left knee has been sore since Tuesday" required>
+        <button type="submit" class="btn display" id="chat-btn">Send</button>
+      </form>
+      {% if chat_error %}
+      <div class="error-panel" style="margin-top:16px;">{{ chat_error }}</div>
+      {% endif %}
+      {% if chat_answer %}
+      <div class="prose-card" style="margin-top:16px;">
+        <h3>Coach</h3>
+        <p>{{ chat_answer }}</p>
       </div>
-      <p class="loading-label" id="loading-label"></p>
-    </form>
+      {% endif %}
+      {% if notes %}
+      <div class="notes-list">
+        <p class="stat-label" style="margin-bottom:8px;">Remembered so far</p>
+        {% for n in notes|reverse %}
+        <p class="note-line"><span class="note-date">{{ n.date }}</span> {{ n.text }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="section generate-section no-print">
+      <form method="post" action="{{ url_for('analyze') }}" id="snapshot-form">
+        <button type="submit" class="btn display" id="snapshot-btn">Generate Snapshot</button>
+        <div class="loading-track" id="loading-track">
+          <div class="loading-fill"></div>
+        </div>
+        <p class="loading-label" id="loading-label"></p>
+      </form>
+    </div>
 
     {% if error %}
     <div class="error-panel">{{ error }}</div>
@@ -777,6 +935,23 @@ HOME_PAGE = """
         <div class="energy-bank-score display" data-animate="{{ data.energy_score }}">{{ data.energy_score }}</div>
       </div>
       <div class="zone-badge zone-{{ data.energy_zone }} display">{{ data.energy_label }}</div>
+
+      {% if data.recent_trend %}
+      <div class="trend-row">
+        <p class="stat-label" style="margin-bottom:10px;">Last 5 Days &middot; Form Trend</p>
+        <div class="trend-bars">
+          {% for d in data.recent_trend %}
+          <div class="trend-bar-col">
+            <div class="trend-bar-track">
+              <div class="trend-bar-fill zone-fill-{{ d.zone }}" data-trend-height="{{ [((d.tsb + 30) / 60 * 100), 6]|max }}" style="height:6%;"></div>
+            </div>
+            <div class="trend-bar-value">{{ d.tsb }}</div>
+            <div class="trend-bar-day">{{ d.weekday }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </div>
 
     <div class="section training-section">
@@ -840,6 +1015,26 @@ HOME_PAGE = """
       </div>
     </div>
 
+    <div class="section power-section">
+      <h2 class="section-title display">Power Curve</h2>
+      <p class="subtitle" style="margin-bottom:16px;">Best efforts, last 42 days</p>
+      {% if data.best_watts %}
+      <div class="power-bars">
+        {% for p in data.best_watts %}
+        <div class="power-bar-row">
+          <div class="power-bar-label">{{ p.label }}</div>
+          <div class="power-bar-track">
+            <div class="power-bar-fill" data-width="{{ p.pct }}" style="width:0%;"></div>
+          </div>
+          <div class="power-bar-value">{{ p.watts }}W</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="subtitle">Power curve data isn't available right now.</p>
+      {% endif %}
+    </div>
+
     <div class="section health-section">
       <h2 class="section-title display">Health</h2>
       <div class="stat-row">
@@ -870,33 +1065,9 @@ HOME_PAGE = """
       <h3 class="display">Recommendation</h3>
       <p>{{ data.recommendation }}</p>
     </div>
-    {% endif %}
 
-    <div class="section chat-section">
-      <h2 class="section-title display">Coach Chat</h2>
-      <p class="subtitle" style="margin-bottom:16px;">Ask a question, or tell your coach something worth remembering</p>
-      <form method="post" action="{{ url_for('ask') }}" id="chat-form">
-        <input type="text" class="chat-input" name="question" placeholder="e.g. My left knee has been sore since Tuesday" required>
-        <button type="submit" class="btn display" id="chat-btn">Send</button>
-      </form>
-      {% if chat_error %}
-      <div class="error-panel" style="margin-top:16px;">{{ chat_error }}</div>
-      {% endif %}
-      {% if chat_answer %}
-      <div class="prose-card" style="margin-top:16px;">
-        <h3>Coach</h3>
-        <p>{{ chat_answer }}</p>
-      </div>
-      {% endif %}
-      {% if notes %}
-      <div class="notes-list">
-        <p class="stat-label" style="margin-bottom:8px;">Remembered so far</p>
-        {% for n in notes|reverse %}
-        <p class="note-line"><span class="note-date">{{ n.date }}</span> {{ n.text }}</p>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
+    <button type="button" class="btn display pdf-btn no-print" id="pdf-btn">Download PDF</button>
+    {% endif %}
   </div>
   <script>
     (function () {
@@ -927,13 +1098,31 @@ HOME_PAGE = """
       });
 
       // Grow-in animation for the Season zone bar
-      var segs = document.querySelectorAll('.zone-seg[data-width], .energy-bank-fill[data-width]');
+      var segs = document.querySelectorAll('.zone-seg[data-width], .energy-bank-fill[data-width], .power-bar-fill[data-width]');
       if (segs.length) {
         setTimeout(function () {
           segs.forEach(function (seg) {
             seg.style.width = seg.getAttribute('data-width') + '%';
           });
         }, 150);
+      }
+
+      // Grow-in animation for the 5-day trend bars
+      var trendBars = document.querySelectorAll('.trend-bar-fill[data-trend-height]');
+      if (trendBars.length) {
+        setTimeout(function () {
+          trendBars.forEach(function (bar) {
+            bar.style.height = bar.getAttribute('data-trend-height') + '%';
+          });
+        }, 150);
+      }
+
+      // Download PDF button - uses the browser's native print-to-PDF
+      var pdfBtn = document.getElementById('pdf-btn');
+      if (pdfBtn) {
+        pdfBtn.addEventListener('click', function () {
+          window.print();
+        });
       }
 
       // Loading feedback on Generate Snapshot submit
@@ -1044,6 +1233,82 @@ def get_intervals_headers():
     credentials = f"API_KEY:{ICU_API_KEY}"
     encoded = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
     return {"Authorization": f"Basic {encoded}"}
+
+
+def fetch_power_curve_payload():
+    headers = get_intervals_headers()
+    url = (
+        f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/power-curves.json"
+        f"?type=Ride&curves=42d"
+    )
+    resp = requests.get(url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def extract_power_curve_points(payload):
+    """The exact shape of this endpoint's response isn't officially documented,
+    so search defensively for a list of {secs, watts} points anywhere in it
+    rather than assuming one fixed structure."""
+    found = []
+
+    def walk(node):
+        if isinstance(node, list):
+            if node and all(isinstance(i, dict) for i in node):
+                keys0 = set(node[0].keys())
+                if "secs" in keys0 and ("watts" in keys0 or "power" in keys0):
+                    found.append(node)
+                    return
+            for item in node:
+                walk(item)
+        elif isinstance(node, dict):
+            for v in node.values():
+                walk(v)
+
+    walk(payload)
+    return found[0] if found else None
+
+
+def format_duration_label(secs):
+    if secs < 60:
+        return f"{secs}s"
+    if secs < 3600:
+        return f"{secs // 60}min"
+    return f"{secs // 3600}h"
+
+
+def best_watts_for_durations(points, target_secs_list):
+    if not points:
+        return []
+    sorted_points = sorted(points, key=lambda p: p.get("secs", 0))
+    results = []
+    for target in target_secs_list:
+        best = None
+        for p in sorted_points:
+            if p.get("secs", 0) <= target:
+                best = p
+            else:
+                break
+        if best is None:
+            best = sorted_points[0]
+        watts = best.get("watts") or best.get("power")
+        if watts:
+            results.append({"label": format_duration_label(target), "watts": round(watts)})
+
+    if results:
+        max_watts = max(r["watts"] for r in results)
+        for r in results:
+            r["pct"] = round(100 * r["watts"] / max_watts) if max_watts else 0
+    return results
+
+
+def get_best_watts():
+    try:
+        payload = fetch_power_curve_payload()
+        points = extract_power_curve_points(payload)
+        return best_watts_for_durations(points, [5, 15, 60, 300, 1200, 3600])
+    except Exception:
+        return []
 
 
 def fetch_intervals_data():
@@ -1179,6 +1444,23 @@ def compute_season_stats(season_activities):
         "zone_mod_pct": mod_pct if mod_pct is not None else "n/a",
         "zone_high_pct": high_pct if high_pct is not None else "n/a",
     }
+
+
+def compute_recent_trend(wellness, n=5):
+    """Daily Form (TSB) for the last n days that have both CTL and ATL, for a
+    quick at-a-glance trend next to the Energy Bank."""
+    daily = []
+    for w in sorted(wellness, key=lambda x: x.get("id", "")):
+        ctl, atl = w.get("ctl"), w.get("atl")
+        if ctl is None or atl is None:
+            continue
+        tsb = round(ctl - atl, 1)
+        try:
+            weekday = date.fromisoformat(w["id"]).strftime("%a")
+        except (ValueError, KeyError):
+            weekday = w.get("id", "")[-2:]
+        daily.append({"date": w.get("id", ""), "weekday": weekday, "tsb": tsb, "zone": classify_form(tsb)})
+    return daily[-n:]
 
 
 def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours):
@@ -1445,6 +1727,8 @@ def analyze():
         energy_bank = compute_energy_bank(
             metrics["form_zone"], metrics["fatigue_zone"], metrics["avg_sleep_hours"]
         )
+        recent_trend = compute_recent_trend(wellness, n=5)
+        best_watts = get_best_watts()
         recent_calories = sum(a.get("calories") or 0 for a in recent_activities)
         notes = load_notes()
         data_text = build_data_text(recent_activities, wellness, season_stats, notes)
@@ -1452,6 +1736,8 @@ def analyze():
         data = {
             **metrics, **season_stats, **analysis, **energy_bank,
             "recent_calories": round(recent_calories),
+            "recent_trend": recent_trend,
+            "best_watts": best_watts,
         }
         session["last_data"] = data
     except requests.HTTPError as e:
