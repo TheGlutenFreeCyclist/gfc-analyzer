@@ -409,13 +409,13 @@ h1.page-title {
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 14px;
   margin-bottom: 20px;
 }
 
 @media (max-width: 560px) {
-  .stat-row { grid-template-columns: 1fr; }
+  .stat-row { grid-template-columns: repeat(2, 1fr); }
 }
 
 .stat-card {
@@ -594,10 +594,116 @@ h1.page-title {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.training-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0s; }
-.season-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.15s; }
-.health-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.3s; }
-.recommendation-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.45s; }
+.training-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.1s; }
+.season-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.25s; }
+.health-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.4s; }
+.recommendation-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.55s; }
+
+.energy-bank-card {
+  border: 1px solid var(--white);
+  border-radius: 16px;
+  padding: 22px 24px;
+  margin-bottom: 24px;
+  text-align: center;
+  opacity: 0;
+  animation: fadeInUp 0.5s ease-out forwards;
+  animation-delay: 0s;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+}
+
+.energy-bank-label {
+  font-size: 15px;
+  color: var(--grey-zone);
+  margin-bottom: 12px;
+  letter-spacing: 0.08em;
+}
+
+.energy-bank-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.energy-bank-battery {
+  position: relative;
+  flex: 1;
+  height: 30px;
+  border: 2px solid var(--white);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.energy-bank-nub {
+  position: absolute;
+  right: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 12px;
+  background: var(--white);
+  border-radius: 0 3px 3px 0;
+}
+
+.energy-bank-fill {
+  height: 100%;
+  transition: width 1.2s ease-out;
+}
+
+.zone-fill-green { background: linear-gradient(90deg, #2c8f47, var(--green)); }
+.zone-fill-grey  { background: linear-gradient(90deg, #5f5f5f, var(--grey-zone)); }
+.zone-fill-red   { background: linear-gradient(90deg, #8f1c26, var(--red)); }
+
+.energy-bank-score {
+  font-size: 36px;
+  min-width: 64px;
+}
+
+.energy-bank-card .zone-badge {
+  margin-top: 12px;
+}
+
+.chat-section form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chat-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 14px;
+  border: 1px solid var(--white);
+  background: var(--black);
+  color: var(--white);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+}
+
+.chat-section .btn {
+  width: auto;
+  margin-top: 0;
+  padding: 14px 22px;
+}
+
+.notes-list {
+  margin-top: 20px;
+  border-top: 1px solid var(--white);
+  padding-top: 16px;
+}
+
+.note-line {
+  font-size: 13px;
+  color: var(--grey-zone);
+  margin: 0 0 8px 0;
+  line-height: 1.5;
+}
+
+.note-date {
+  color: var(--white);
+  font-weight: 600;
+  margin-right: 8px;
+}
 """
 
 LOGIN_PAGE = """
@@ -661,6 +767,18 @@ HOME_PAGE = """
     {% endif %}
 
     {% if data %}
+    <div class="energy-bank-card">
+      <div class="energy-bank-label display">Energy Bank</div>
+      <div class="energy-bank-row">
+        <div class="energy-bank-battery">
+          <div class="energy-bank-fill zone-fill-{{ data.energy_zone }}" data-width="{{ data.energy_score }}" style="width:0%;"></div>
+          <div class="energy-bank-nub"></div>
+        </div>
+        <div class="energy-bank-score display" data-animate="{{ data.energy_score }}">{{ data.energy_score }}</div>
+      </div>
+      <div class="zone-badge zone-{{ data.energy_zone }} display">{{ data.energy_label }}</div>
+    </div>
+
     <div class="section training-section">
       <h2 class="section-title display">Training</h2>
       <div class="stat-row">
@@ -678,6 +796,11 @@ HOME_PAGE = """
           <div class="stat-label">Form (TSB)</div>
           <div class="stat-value" data-animate="{{ data.tsb }}">{{ data.tsb }}</div>
           <div class="zone-badge zone-{{ data.form_zone }} display">{{ data.form_zone }}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Calories Burned</div>
+          <div class="stat-value" data-animate="{{ data.recent_calories }}">{{ data.recent_calories }}</div>
+          <div class="stat-sub">last {{ days }} days</div>
         </div>
       </div>
       <div class="prose-card">
@@ -732,6 +855,10 @@ HOME_PAGE = """
           <div class="stat-label">Avg Sleep</div>
           <div class="stat-value" data-animate="{{ data.avg_sleep }}">{{ data.avg_sleep }}</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">Weight</div>
+          <div class="stat-value" data-animate="{{ data.latest_weight }}">{{ data.latest_weight }}</div>
+        </div>
       </div>
       <div class="prose-card">
         <h3>Fatigue Signals</h3>
@@ -744,10 +871,36 @@ HOME_PAGE = """
       <p>{{ data.recommendation }}</p>
     </div>
     {% endif %}
+
+    <div class="section chat-section">
+      <h2 class="section-title display">Coach Chat</h2>
+      <p class="subtitle" style="margin-bottom:16px;">Ask a question, or tell your coach something worth remembering</p>
+      <form method="post" action="{{ url_for('ask') }}" id="chat-form">
+        <input type="text" class="chat-input" name="question" placeholder="e.g. My left knee has been sore since Tuesday" required>
+        <button type="submit" class="btn display" id="chat-btn">Send</button>
+      </form>
+      {% if chat_error %}
+      <div class="error-panel" style="margin-top:16px;">{{ chat_error }}</div>
+      {% endif %}
+      {% if chat_answer %}
+      <div class="prose-card" style="margin-top:16px;">
+        <h3>Coach</h3>
+        <p>{{ chat_answer }}</p>
+      </div>
+      {% endif %}
+      {% if notes %}
+      <div class="notes-list">
+        <p class="stat-label" style="margin-bottom:8px;">Remembered so far</p>
+        {% for n in notes|reverse %}
+        <p class="note-line"><span class="note-date">{{ n.date }}</span> {{ n.text }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
   </div>
   <script>
     (function () {
-      var els = document.querySelectorAll('.stat-value[data-animate]');
+      var els = document.querySelectorAll('.stat-value[data-animate], .energy-bank-score[data-animate]');
       els.forEach(function (el) {
         var raw = el.getAttribute('data-animate');
         var match = raw.match(/^(-?\\d+(\\.\\d+)?)(.*)$/);
@@ -774,7 +927,7 @@ HOME_PAGE = """
       });
 
       // Grow-in animation for the Season zone bar
-      var segs = document.querySelectorAll('.zone-seg[data-width]');
+      var segs = document.querySelectorAll('.zone-seg[data-width], .energy-bank-fill[data-width]');
       if (segs.length) {
         setTimeout(function () {
           segs.forEach(function (seg) {
@@ -809,11 +962,47 @@ HOME_PAGE = """
           }, 3200);
         });
       }
+
+      // Simple loading feedback on the Coach Chat submit
+      var chatForm = document.getElementById('chat-form');
+      if (chatForm) {
+        chatForm.addEventListener('submit', function () {
+          var chatBtn = document.getElementById('chat-btn');
+          chatBtn.disabled = true;
+          chatBtn.textContent = 'Thinking...';
+        });
+      }
     })();
   </script>
 </body>
 </html>
 """
+
+
+NOTES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coach_notes.json")
+MAX_NOTES = 30  # keep the file small; oldest notes drop off
+
+
+def load_notes():
+    if not os.path.exists(NOTES_FILE):
+        return []
+    try:
+        with open(NOTES_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def save_note(text):
+    notes = load_notes()
+    notes.append({"date": date.today().isoformat(), "text": text})
+    notes = notes[-MAX_NOTES:]
+    try:
+        with open(NOTES_FILE, "w") as f:
+            json.dump(notes, f)
+    except OSError:
+        pass
+    return notes
 
 
 def require_login():
@@ -847,6 +1036,7 @@ def home():
     return render_template_string(
         HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
         data=None, error=None, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
+        notes=load_notes(), chat_answer=None, chat_error=None,
     )
 
 
@@ -868,7 +1058,7 @@ def fetch_intervals_data():
     activities_fields = (
         "id,name,type,start_date_local,moving_time,elapsed_time,distance,"
         "icu_training_load,icu_weighted_avg_watts,average_watts,average_heartrate,"
-        "icu_zone_times"
+        "icu_zone_times,calories"
     )
     activities_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities"
@@ -991,6 +1181,32 @@ def compute_season_stats(season_activities):
     }
 
 
+def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours):
+    """A single 0-100 composite score combining Form, Fatigue and recent sleep.
+    Deterministic, not AI-guessed, so it stays consistent snapshot to snapshot."""
+    score = 50
+
+    score += {"green": 25, "grey": 0, "red": -25}.get(form_zone, 0)
+    score += {"green": 15, "grey": 0, "red": -15}.get(fatigue_zone, 0)
+
+    if avg_sleep_hours is not None:
+        if avg_sleep_hours >= 7.5:
+            score += 10
+        elif avg_sleep_hours < 6.5:
+            score -= 10
+
+    score = max(0, min(100, score))
+
+    if score >= 65:
+        label, zone = "Charged", "green"
+    elif score >= 35:
+        label, zone = "Balanced", "grey"
+    else:
+        label, zone = "Drained", "red"
+
+    return {"energy_score": score, "energy_label": label, "energy_zone": zone}
+
+
 def compute_metrics(wellness):
     sorted_wellness = sorted(wellness, key=lambda w: w.get("id", ""))
     latest = sorted_wellness[-1] if sorted_wellness else {}
@@ -1002,6 +1218,11 @@ def compute_metrics(wellness):
     sleep_values = [w["sleepSecs"] / 3600 for w in wellness if w.get("sleepSecs")]
     avg_sleep = round(statistics.mean(sleep_values), 1) if sleep_values else None
 
+    # Weight isn't logged every day - use the most recent day it IS present, not
+    # necessarily the very latest wellness entry.
+    weight_entries = [w for w in sorted_wellness if w.get("weight")]
+    latest_weight = weight_entries[-1]["weight"] if weight_entries else None
+
     return {
         "ctl": round(ctl, 1) if ctl is not None else "n/a",
         "atl": round(atl, 1) if atl is not None else "n/a",
@@ -1012,10 +1233,12 @@ def compute_metrics(wellness):
         "latest_rhr": latest.get("restingHR", "n/a"),
         "latest_hrv": latest.get("hrv", "n/a"),
         "avg_sleep": f"{avg_sleep}h" if avg_sleep is not None else "n/a",
+        "avg_sleep_hours": avg_sleep,
+        "latest_weight": f"{round(latest_weight, 1)}kg" if latest_weight is not None else "n/a",
     }
 
 
-def build_data_text(recent_activities, wellness, season_stats):
+def build_data_text(recent_activities, wellness, season_stats, notes=None):
     lines = ["RECENT ACTIVITIES (last {} days):".format(DAYS_BACK)]
     if not recent_activities:
         lines.append("(no activities found on Intervals.icu for this period)")
@@ -1024,7 +1247,7 @@ def build_data_text(recent_activities, wellness, season_stats):
         power = a.get("icu_weighted_avg_watts") or a.get("average_watts") or "n/a"
         lines.append(
             "- {date} | {name} | {type} | {dur} min | load {load} | "
-            "power {pwr} | HR {hr}".format(
+            "power {pwr} | HR {hr} | calories {cal}".format(
                 date=a.get("start_date_local", "")[:10],
                 name=a.get("name", ""),
                 type=a.get("type", ""),
@@ -1032,6 +1255,7 @@ def build_data_text(recent_activities, wellness, season_stats):
                 load=a.get("icu_training_load", "n/a"),
                 pwr=power,
                 hr=a.get("average_heartrate", "n/a"),
+                cal=a.get("calories", "n/a"),
             )
         )
 
@@ -1056,9 +1280,16 @@ def build_data_text(recent_activities, wellness, season_stats):
                 atl=round(w["atl"], 1) if w.get("atl") is not None else "n/a",
             )
         )
+        if w.get("weight"):
+            line += " | weight {}kg".format(round(w["weight"], 1))
         if w.get("comments"):
             line += " | note: {}".format(w["comments"])
         lines.append(line)
+
+    if notes:
+        lines.append("\nCOACH NOTES (things the athlete has told you before, most recent last):")
+        for n in notes:
+            lines.append("- {date}: {text}".format(date=n.get("date", ""), text=n.get("text", "")))
 
     return "\n".join(lines)
 
@@ -1136,6 +1367,70 @@ def ask_claude(data_text, metrics):
         )
 
 
+def ask_claude_chat(question, notes, current_data):
+    today = date.today()
+    notes_text = "\n".join(
+        "- {}: {}".format(n.get("date", ""), n.get("text", "")) for n in notes
+    ) or "(none yet)"
+
+    snapshot_text = "(no snapshot generated yet this session)"
+    if current_data:
+        snapshot_text = (
+            "Fitness (CTL) = {ctl} [{fz}], Fatigue (ATL) = {atl} [{gz}], "
+            "Form (TSB) = {tsb} [{fmz}], Energy Bank = {es}/100 ({el})."
+        ).format(
+            ctl=current_data.get("ctl"), fz=current_data.get("fitness_zone"),
+            atl=current_data.get("atl"), gz=current_data.get("fatigue_zone"),
+            tsb=current_data.get("tsb"), fmz=current_data.get("form_zone"),
+            es=current_data.get("energy_score"), el=current_data.get("energy_label"),
+        )
+
+    prompt = (
+        "You are the athlete's cycling coach, embedded as a chat box in their personal "
+        "dashboard. Today's real date is {today_date} ({today_weekday}). {athlete_context} "
+        "Notes the athlete has shared with you before:\n{notes_text}\n\n"
+        "Their most recent snapshot: {snapshot_text}\n\n"
+        "The athlete just wrote: \"{question}\"\n\n"
+        "Respond ONLY with valid JSON (no markdown fences, no extra text) with exactly these "
+        "keys:\n"
+        '- "answer": a helpful, conversational reply (2-4 sentences, plain prose, no markdown)\n'
+        '- "remember": if the athlete\'s message contains a specific, durable fact worth '
+        "remembering for future sessions (an injury, an upcoming race, a life event affecting "
+        "training, a stated preference or goal), a short factual sentence capturing it in the "
+        "third person (e.g. \"Reported mild left knee pain starting July 30\"). If there is "
+        "nothing durable worth remembering, use exactly null."
+    ).format(
+        today_date=today.isoformat(), today_weekday=today.strftime("%A"),
+        athlete_context=ATHLETE_CONTEXT, notes_text=notes_text,
+        snapshot_text=snapshot_text, question=question,
+    )
+
+    resp = requests.post(
+        "https://api.anthropic.com/v1/messages",
+        headers={
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        json={
+            "model": "claude-sonnet-4-6",
+            "max_tokens": 400,
+            "messages": [{"role": "user", "content": prompt}],
+        },
+        timeout=60,
+    )
+    resp.raise_for_status()
+    resp_data = resp.json()
+    text = "".join(block.get("text", "") for block in resp_data.get("content", []))
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[4:]
+    parsed = json.loads(text)
+    return parsed.get("answer", ""), parsed.get("remember")
+
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     if not require_login():
@@ -1147,9 +1442,18 @@ def analyze():
         recent_activities, season_activities, wellness = fetch_intervals_data()
         metrics = compute_metrics(wellness)
         season_stats = compute_season_stats(season_activities)
-        data_text = build_data_text(recent_activities, wellness, season_stats)
+        energy_bank = compute_energy_bank(
+            metrics["form_zone"], metrics["fatigue_zone"], metrics["avg_sleep_hours"]
+        )
+        recent_calories = sum(a.get("calories") or 0 for a in recent_activities)
+        notes = load_notes()
+        data_text = build_data_text(recent_activities, wellness, season_stats, notes)
         analysis = ask_claude(data_text, metrics)
-        data = {**metrics, **season_stats, **analysis}
+        data = {
+            **metrics, **season_stats, **analysis, **energy_bank,
+            "recent_calories": round(recent_calories),
+        }
+        session["last_data"] = data
     except requests.HTTPError as e:
         error = f"Error calling an external service: {e}"
     except (json.JSONDecodeError, KeyError) as e:
@@ -1160,6 +1464,37 @@ def analyze():
     return render_template_string(
         HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
         data=data, error=error, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
+        notes=load_notes(), chat_answer=None, chat_error=None,
+    )
+
+
+@app.route("/ask", methods=["POST"])
+def ask():
+    if not require_login():
+        return redirect(url_for("login"))
+
+    question = (request.form.get("question") or "").strip()
+    chat_answer = None
+    chat_error = None
+    current_data = session.get("last_data")
+
+    if question:
+        try:
+            notes = load_notes()
+            chat_answer, remember = ask_claude_chat(question, notes, current_data)
+            if remember:
+                notes = save_note(remember)
+        except requests.HTTPError as e:
+            chat_error = f"Error calling an external service: {e}"
+        except (json.JSONDecodeError, KeyError) as e:
+            chat_error = f"The AI response could not be parsed: {e}"
+        except Exception as e:
+            chat_error = f"Unexpected error: {e}"
+
+    return render_template_string(
+        HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
+        data=current_data, error=None, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
+        notes=load_notes(), chat_answer=chat_answer, chat_error=chat_error,
     )
 
 
