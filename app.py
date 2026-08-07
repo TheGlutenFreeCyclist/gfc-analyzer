@@ -938,7 +938,8 @@ HOME_PAGE = """
 
       {% if data.recent_trend %}
       <div class="trend-row">
-        <p class="stat-label" style="margin-bottom:10px;">Last 5 Days &middot; Form Trend</p>
+        <p class="stat-label" style="margin-bottom:4px;">Last 5 Days &middot; Form Trend</p>
+        <p class="stat-sub" style="margin-bottom:10px;">Negative means fatigue is currently outweighing fitness — normal during a hard block, worth watching if it stays low for many days.</p>
         <div class="trend-bars">
           {% for d in data.recent_trend %}
           <div class="trend-bar-col">
