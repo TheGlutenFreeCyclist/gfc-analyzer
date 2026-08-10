@@ -594,11 +594,11 @@ h1.page-title {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.training-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.1s; }
-.season-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.25s; }
-.power-section    { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.35s; }
+.recommendation-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.15s; }
+.training-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.3s; }
 .health-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.45s; }
-.recommendation-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.6s; }
+.power-section    { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.6s; }
+.season-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.75s; }
 
 .energy-bank-card {
   border: 1px solid var(--white);
@@ -617,6 +617,30 @@ h1.page-title {
   color: var(--grey-zone);
   margin-bottom: 12px;
   letter-spacing: 0.08em;
+}
+
+.energy-bank-explainer {
+  font-size: 13px;
+  color: var(--grey-zone);
+  line-height: 1.5;
+  max-width: 480px;
+  margin: 0 auto 16px auto;
+}
+
+.trend-arrow {
+  font-size: 16px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.trend-green { color: var(--green); }
+.trend-red   { color: var(--red); }
+.trend-grey  { color: var(--grey-zone); }
+
+.chat-noted {
+  margin-top: 16px;
+  color: var(--green);
+  font-size: 15px;
 }
 
 .energy-bank-row {
@@ -895,10 +919,7 @@ HOME_PAGE = """
       <div class="error-panel" style="margin-top:16px;">{{ chat_error }}</div>
       {% endif %}
       {% if chat_answer %}
-      <div class="prose-card" style="margin-top:16px;">
-        <h3>Coach</h3>
-        <p>{{ chat_answer }}</p>
-      </div>
+      <p class="chat-noted display">{{ chat_answer }}</p>
       {% endif %}
       {% if notes %}
       <div class="notes-list">
@@ -927,6 +948,7 @@ HOME_PAGE = """
     {% if data %}
     <div class="energy-bank-card">
       <div class="energy-bank-label display">Energy Bank</div>
+      <p class="energy-bank-explainer">A single 0-100 readiness score blending your current Form, Fatigue and recent sleep &mdash; the quickest way to see where you stand right now.</p>
       <div class="energy-bank-row">
         <div class="energy-bank-battery">
           <div class="energy-bank-fill zone-fill-{{ data.energy_zone }}" data-width="{{ data.energy_score }}" style="width:0%;"></div>
@@ -955,8 +977,14 @@ HOME_PAGE = """
       {% endif %}
     </div>
 
+    <div class="recommendation-box">
+      <h3 class="display">Recommendation</h3>
+      <p>{{ data.recommendation }}</p>
+    </div>
+
     <div class="section training-section">
       <h2 class="section-title display">Training</h2>
+      <p class="subtitle" style="margin-bottom:16px;">Last {{ days }} days</p>
       <div class="stat-row">
         <div class="stat-card">
           <div class="stat-label">Fitness (CTL)</div>
@@ -974,9 +1002,9 @@ HOME_PAGE = """
           <div class="zone-badge zone-{{ data.form_zone }} display">{{ data.form_zone }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Calories Burned</div>
-          <div class="stat-value" data-animate="{{ data.recent_calories }}">{{ data.recent_calories }}</div>
-          <div class="stat-sub">last {{ days }} days</div>
+          <div class="stat-label">Avg Daily Calories</div>
+          <div class="stat-value" data-animate="{{ data.avg_daily_calories }}">{{ data.avg_daily_calories }}</div>
+          <div class="stat-sub">kcal/day, last {{ days }} days</div>
         </div>
       </div>
       <div class="prose-card">
@@ -985,34 +1013,38 @@ HOME_PAGE = """
       </div>
     </div>
 
-    <div class="section season-section">
-      <h2 class="section-title display">Season</h2>
-      <p class="subtitle" style="margin-bottom:16px;">Based on the last {{ season_days }} days of activity data</p>
-      <div class="stat-row" style="grid-template-columns: 1fr;">
+    <div class="section health-section">
+      <h2 class="section-title display">Health</h2>
+      <p class="subtitle" style="margin-bottom:16px;">Most recent readings</p>
+      <div class="stat-row">
         <div class="stat-card">
-          <div class="stat-label">Total Time</div>
-          <div class="stat-value" data-animate="{{ data.season_hours }}h">{{ data.season_hours }}h</div>
+          <div class="stat-label">Resting HR</div>
+          <div class="stat-value">
+            {{ data.latest_rhr }}{% if data.trend_arrows.rhr %}<span class="trend-arrow trend-{{ data.trend_arrows.rhr.color }}">{{ data.trend_arrows.rhr.arrow }}</span>{% endif %}
+          </div>
         </div>
-      </div>
-      <div class="zone-bar-wrap">
-        <div class="zone-bar">
-          <div class="zone-seg zone-seg-low" data-width="{{ data.zone_low_pct }}" style="width:0%;"></div>
-          <div class="zone-seg zone-seg-mod" data-width="{{ data.zone_mod_pct }}" style="width:0%;"></div>
-          <div class="zone-seg zone-seg-high" data-width="{{ data.zone_high_pct }}" style="width:0%;"></div>
+        <div class="stat-card">
+          <div class="stat-label">HRV</div>
+          <div class="stat-value">
+            {{ data.latest_hrv }}{% if data.trend_arrows.hrv %}<span class="trend-arrow trend-{{ data.trend_arrows.hrv.color }}">{{ data.trend_arrows.hrv.arrow }}</span>{% endif %}
+          </div>
         </div>
-        <div class="zone-bar-labels">
-          <span><i class="zone-dot zone-dot-low"></i>Low {{ data.zone_low_pct }}%</span>
-          <span><i class="zone-dot zone-dot-mod"></i>Moderate {{ data.zone_mod_pct }}%</span>
-          <span><i class="zone-dot zone-dot-high"></i>High {{ data.zone_high_pct }}%</span>
+        <div class="stat-card">
+          <div class="stat-label">Avg Sleep</div>
+          <div class="stat-value">
+            {{ data.avg_sleep }}{% if data.trend_arrows.sleep %}<span class="trend-arrow trend-{{ data.trend_arrows.sleep.color }}">{{ data.trend_arrows.sleep.arrow }}</span>{% endif %}
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Weight</div>
+          <div class="stat-value">
+            {{ data.latest_weight }}{% if data.trend_arrows.weight %}<span class="trend-arrow trend-{{ data.trend_arrows.weight.color }}">{{ data.trend_arrows.weight.arrow }}</span>{% endif %}
+          </div>
         </div>
       </div>
       <div class="prose-card">
-        <h3>Training Distribution</h3>
-        <p>{{ data.season_distribution }}</p>
-      </div>
-      <div class="prose-card">
-        <h3>Seasonal Outlook</h3>
-        <p>{{ data.season_outlook }}</p>
+        <h3>Fatigue Signals</h3>
+        <p>{{ data.fatigue_signals }}</p>
       </div>
     </div>
 
@@ -1039,35 +1071,35 @@ HOME_PAGE = """
       {% endif %}
     </div>
 
-    <div class="section health-section">
-      <h2 class="section-title display">Health</h2>
-      <div class="stat-row">
+    <div class="section season-section">
+      <h2 class="section-title display">Season</h2>
+      <p class="subtitle" style="margin-bottom:16px;">Zooming out &mdash; last {{ season_days }} days</p>
+      <div class="stat-row" style="grid-template-columns: 1fr;">
         <div class="stat-card">
-          <div class="stat-label">Resting HR</div>
-          <div class="stat-value" data-animate="{{ data.latest_rhr }}">{{ data.latest_rhr }}</div>
+          <div class="stat-label">Total Time</div>
+          <div class="stat-value" data-animate="{{ data.season_hours }}h">{{ data.season_hours }}h</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">HRV</div>
-          <div class="stat-value" data-animate="{{ data.latest_hrv }}">{{ data.latest_hrv }}</div>
+      </div>
+      <div class="zone-bar-wrap">
+        <div class="zone-bar">
+          <div class="zone-seg zone-seg-low" data-width="{{ data.zone_low_pct }}" style="width:0%;"></div>
+          <div class="zone-seg zone-seg-mod" data-width="{{ data.zone_mod_pct }}" style="width:0%;"></div>
+          <div class="zone-seg zone-seg-high" data-width="{{ data.zone_high_pct }}" style="width:0%;"></div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Avg Sleep</div>
-          <div class="stat-value" data-animate="{{ data.avg_sleep }}">{{ data.avg_sleep }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Weight</div>
-          <div class="stat-value" data-animate="{{ data.latest_weight }}">{{ data.latest_weight }}</div>
+        <div class="zone-bar-labels">
+          <span><i class="zone-dot zone-dot-low"></i>Low {{ data.zone_low_pct }}%</span>
+          <span><i class="zone-dot zone-dot-mod"></i>Moderate {{ data.zone_mod_pct }}%</span>
+          <span><i class="zone-dot zone-dot-high"></i>High {{ data.zone_high_pct }}%</span>
         </div>
       </div>
       <div class="prose-card">
-        <h3>Fatigue Signals</h3>
-        <p>{{ data.fatigue_signals }}</p>
+        <h3>Training Distribution</h3>
+        <p>{{ data.season_distribution }}</p>
       </div>
-    </div>
-
-    <div class="recommendation-box">
-      <h3 class="display">Recommendation</h3>
-      <p>{{ data.recommendation }}</p>
+      <div class="prose-card">
+        <h3>Seasonal Outlook</h3>
+        <p>{{ data.season_outlook }}</p>
+      </div>
     </div>
 
     <button type="button" class="btn display pdf-btn no-print" id="pdf-btn">Download PDF</button>
@@ -1475,6 +1507,44 @@ def compute_season_stats(season_activities):
     }
 
 
+def last_two_values(wellness, field):
+    vals = [
+        w[field] for w in sorted(wellness, key=lambda x: x.get("id", ""))
+        if w.get(field) is not None
+    ]
+    if len(vals) < 2:
+        return None, None
+    return vals[-1], vals[-2]
+
+
+def trend_arrow(current, previous, higher_is_better):
+    """higher_is_better: True/False for a directional judgement, or None for
+    a neutral metric where up/down isn't inherently good or bad."""
+    if current is None or previous is None or current == previous:
+        return None
+    up = current > previous
+    arrow = "▲" if up else "▼"
+    if higher_is_better is None:
+        color = "grey"
+    else:
+        good = up if higher_is_better else not up
+        color = "green" if good else "red"
+    return {"arrow": arrow, "color": color}
+
+
+def compute_trend_arrows(wellness):
+    rhr_latest, rhr_prev = last_two_values(wellness, "restingHR")
+    hrv_latest, hrv_prev = last_two_values(wellness, "hrv")
+    sleep_latest, sleep_prev = last_two_values(wellness, "sleepSecs")
+    weight_latest, weight_prev = last_two_values(wellness, "weight")
+    return {
+        "rhr": trend_arrow(rhr_latest, rhr_prev, higher_is_better=False),
+        "hrv": trend_arrow(hrv_latest, hrv_prev, higher_is_better=True),
+        "sleep": trend_arrow(sleep_latest, sleep_prev, higher_is_better=True),
+        "weight": trend_arrow(weight_latest, weight_prev, higher_is_better=None),
+    }
+
+
 def compute_recent_trend(wellness, n=5):
     """Daily Form (TSB) for the last n days that have both CTL and ATL, for a
     quick at-a-glance trend next to the Energy Bank."""
@@ -1757,15 +1827,18 @@ def analyze():
             metrics["form_zone"], metrics["fatigue_zone"], metrics["avg_sleep_hours"]
         )
         recent_trend = compute_recent_trend(wellness, n=5)
+        trend_arrows = compute_trend_arrows(wellness)
         best_watts, best_watts_debug = get_best_watts()
         recent_calories = sum(a.get("calories") or 0 for a in recent_activities)
+        avg_daily_calories = round(recent_calories / DAYS_BACK) if DAYS_BACK else 0
         notes = load_notes()
         data_text = build_data_text(recent_activities, wellness, season_stats, notes)
         analysis = ask_claude(data_text, metrics)
         data = {
             **metrics, **season_stats, **analysis, **energy_bank,
-            "recent_calories": round(recent_calories),
+            "avg_daily_calories": avg_daily_calories,
             "recent_trend": recent_trend,
+            "trend_arrows": trend_arrows,
             "best_watts": best_watts,
             "best_watts_debug": best_watts_debug,
         }
@@ -1797,9 +1870,14 @@ def ask():
     if question:
         try:
             notes = load_notes()
-            chat_answer, remember = ask_claude_chat(question, notes, current_data)
+            _ai_reply, remember = ask_claude_chat(question, notes, current_data)
             if remember:
                 notes = save_note(remember)
+            else:
+                # nothing the AI flagged as durable - save the raw note anyway so
+                # it's still available as context, verbatim, for the next snapshot
+                notes = save_note(question)
+            chat_answer = "Noted ✅ — I'll factor this into your next snapshot."
         except requests.HTTPError as e:
             chat_error = f"Error calling an external service: {e}"
         except (json.JSONDecodeError, KeyError) as e:
