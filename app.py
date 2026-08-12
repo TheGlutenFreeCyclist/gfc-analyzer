@@ -602,14 +602,26 @@ h1.page-title {
 
 .energy-bank-card {
   border: 1px solid var(--white);
-  border-radius: 16px;
-  padding: 22px 24px;
+  border-radius: 20px;
+  padding: 26px 24px;
   margin-bottom: 24px;
   text-align: center;
   opacity: 0;
   animation: fadeInUp 0.5s ease-out forwards;
   animation-delay: 0s;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.55);
+  position: relative;
+  overflow: hidden;
+}
+
+.energy-bank-card.zone-glow-green {
+  background: radial-gradient(ellipse 120% 100% at 50% -10%, rgba(63,185,95,0.18), transparent 65%), var(--panel);
+}
+.energy-bank-card.zone-glow-grey {
+  background: radial-gradient(ellipse 120% 100% at 50% -10%, rgba(160,160,160,0.14), transparent 65%), var(--panel);
+}
+.energy-bank-card.zone-glow-red {
+  background: radial-gradient(ellipse 120% 100% at 50% -10%, rgba(216,30,44,0.20), transparent 65%), var(--panel);
 }
 
 .energy-bank-label {
@@ -617,6 +629,7 @@ h1.page-title {
   color: var(--grey-zone);
   margin-bottom: 12px;
   letter-spacing: 0.08em;
+  position: relative;
 }
 
 .energy-bank-explainer {
@@ -624,7 +637,8 @@ h1.page-title {
   color: var(--grey-zone);
   line-height: 1.5;
   max-width: 480px;
-  margin: 0 auto 16px auto;
+  margin: 0 auto 18px auto;
+  position: relative;
 }
 
 .trend-arrow {
@@ -643,49 +657,51 @@ h1.page-title {
   font-size: 15px;
 }
 
-.energy-bank-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.energy-bank-battery {
+.energy-ring {
+  width: 148px;
+  height: 148px;
+  border-radius: 50%;
+  margin: 0 auto 18px auto;
+  padding: 9px;
   position: relative;
-  flex: 1;
-  height: 30px;
-  border: 2px solid var(--white);
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--panel);
+  background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(255,255,255,0.09) 0);
+  box-shadow: 0 0 30px -4px var(--ring-glow);
 }
 
-.energy-bank-nub {
-  position: absolute;
-  right: -7px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 5px;
-  height: 12px;
-  background: var(--white);
-  border-radius: 0 3px 3px 0;
-}
+.energy-ring.zone-ring-green { --ring-color: var(--green); --ring-glow: rgba(63,185,95,0.55); }
+.energy-ring.zone-ring-grey  { --ring-color: var(--grey-zone); --ring-glow: rgba(160,160,160,0.4); }
+.energy-ring.zone-ring-red   { --ring-color: var(--red); --ring-glow: rgba(216,30,44,0.55); }
 
-.energy-bank-fill {
+.energy-ring-inner {
+  width: 100%;
   height: 100%;
-  transition: width 1.2s ease-out;
+  border-radius: 50%;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
-
-.zone-fill-green { background: linear-gradient(90deg, #2c8f47, var(--green)); }
-.zone-fill-grey  { background: linear-gradient(90deg, #5f5f5f, var(--grey-zone)); }
-.zone-fill-red   { background: linear-gradient(90deg, #8f1c26, var(--red)); }
 
 .energy-bank-score {
-  font-size: 36px;
-  min-width: 64px;
+  font-size: 42px;
+  line-height: 1;
 }
+
+.energy-ring-sub {
+  font-size: 11px;
+  color: var(--grey-zone);
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+
+.zone-fill-green { background: linear-gradient(90deg, #2c8f47, var(--green)); color: var(--green); }
+.zone-fill-grey  { background: linear-gradient(90deg, #6a6a6a, var(--grey-zone)); color: var(--grey-zone); }
+.zone-fill-red   { background: linear-gradient(90deg, #8f1c26, var(--red)); color: var(--red); }
 
 .energy-bank-card .zone-badge {
   margin-top: 12px;
+  position: relative;
 }
 
 .chat-section form {
@@ -755,17 +771,20 @@ h1.page-title {
 
 .trend-bar-track {
   width: 100%;
-  max-width: 28px;
-  height: 44px;
+  max-width: 26px;
+  height: 48px;
   display: flex;
   align-items: flex-end;
-  border-bottom: 1px solid var(--grey-zone);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.07);
+  overflow: hidden;
 }
 
 .trend-bar-fill {
   width: 100%;
-  border-radius: 3px 3px 0 0;
+  border-radius: 999px;
   transition: height 1s ease-out;
+  box-shadow: 0 0 10px -1px currentColor;
 }
 
 .trend-bar-value {
@@ -946,15 +965,14 @@ HOME_PAGE = """
     {% endif %}
 
     {% if data %}
-    <div class="energy-bank-card">
+    <div class="energy-bank-card zone-glow-{{ data.energy_zone }}">
       <div class="energy-bank-label display">Energy Bank</div>
       <p class="energy-bank-explainer">A single 0-100 readiness score blending your current Form, Fatigue and recent sleep &mdash; the quickest way to see where you stand right now.</p>
-      <div class="energy-bank-row">
-        <div class="energy-bank-battery">
-          <div class="energy-bank-fill zone-fill-{{ data.energy_zone }}" data-width="{{ data.energy_score }}" style="width:0%;"></div>
-          <div class="energy-bank-nub"></div>
+      <div class="energy-ring zone-ring-{{ data.energy_zone }}" style="--pct: {{ data.energy_score }};">
+        <div class="energy-ring-inner">
+          <div class="energy-bank-score display" data-animate="{{ data.energy_score }}">{{ data.energy_score }}</div>
+          <div class="energy-ring-sub">/ 100</div>
         </div>
-        <div class="energy-bank-score display" data-animate="{{ data.energy_score }}">{{ data.energy_score }}</div>
       </div>
       <div class="zone-badge zone-{{ data.energy_zone }} display">{{ data.energy_label }}</div>
 
@@ -1134,7 +1152,7 @@ HOME_PAGE = """
       });
 
       // Grow-in animation for the Season zone bar
-      var segs = document.querySelectorAll('.zone-seg[data-width], .energy-bank-fill[data-width], .power-bar-fill[data-width]');
+      var segs = document.querySelectorAll('.zone-seg[data-width], .power-bar-fill[data-width]');
       if (segs.length) {
         setTimeout(function () {
           segs.forEach(function (seg) {
