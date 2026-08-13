@@ -695,6 +695,62 @@ h1.page-title {
   margin-top: 4px;
 }
 
+.mini-ring {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin: 8px auto 0 auto;
+  padding: 5px;
+  background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(255,255,255,0.09) 0);
+  box-shadow: 0 0 14px -3px var(--ring-glow);
+}
+
+.mini-ring-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mini-ring-value {
+  font-family: 'Bayon', sans-serif;
+  font-size: 17px;
+  color: var(--white);
+}
+
+.checkin-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.checkin-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.checkin-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--white);
+  background: transparent;
+  color: var(--white);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.checkin-btn:hover {
+  background: var(--red);
+  border-color: var(--red);
+}
+
 .zone-fill-green { background: linear-gradient(90deg, #2c8f47, var(--green)); color: var(--green); }
 .zone-fill-grey  { background: linear-gradient(90deg, #6a6a6a, var(--grey-zone)); color: var(--grey-zone); }
 .zone-fill-red   { background: linear-gradient(90deg, #8f1c26, var(--red)); color: var(--red); }
@@ -950,6 +1006,25 @@ HOME_PAGE = """
       {% endif %}
     </div>
 
+    <div class="section checkin-section no-print">
+      <h2 class="section-title display">Daily Check-In</h2>
+      <p class="subtitle" style="margin-bottom:16px;">How are you feeling today? This doesn't come from Intervals.icu &mdash; you tell us.</p>
+      <div class="checkin-row">
+        {% if latest_feeling %}
+        <div class="mini-ring zone-ring-{{ latest_feeling.color }}" style="--pct: {{ latest_feeling.value * 10 }};">
+          <div class="mini-ring-inner">
+            <div class="mini-ring-value">{{ latest_feeling.value }}</div>
+          </div>
+        </div>
+        {% endif %}
+        <form method="post" action="{{ url_for('log_feeling') }}" class="checkin-buttons">
+          {% for n in range(1, 11) %}
+          <button type="submit" name="feeling" value="{{ n }}" class="checkin-btn display">{{ n }}</button>
+          {% endfor %}
+        </form>
+      </div>
+    </div>
+
     <div class="section generate-section no-print">
       <form method="post" action="{{ url_for('analyze') }}" id="snapshot-form">
         <button type="submit" class="btn display" id="snapshot-btn">Generate Snapshot</button>
@@ -1020,9 +1095,9 @@ HOME_PAGE = """
           <div class="zone-badge zone-{{ data.form_zone }} display">{{ data.form_zone }}</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Avg Daily Calories</div>
+          <div class="stat-label">Avg Training Calories</div>
           <div class="stat-value" data-animate="{{ data.avg_daily_calories }}">{{ data.avg_daily_calories }}</div>
-          <div class="stat-sub">kcal/day, last {{ days }} days</div>
+          <div class="stat-sub">kcal burned in training/day, last {{ days }} days</div>
         </div>
       </div>
       <div class="prose-card">
@@ -1037,21 +1112,42 @@ HOME_PAGE = """
       <div class="stat-row">
         <div class="stat-card">
           <div class="stat-label">Resting HR</div>
-          <div class="stat-value">
-            {{ data.latest_rhr }}{% if data.trend_arrows.rhr %}<span class="trend-arrow trend-{{ data.trend_arrows.rhr.color }}">{{ data.trend_arrows.rhr.arrow }}</span>{% endif %}
+          {% if data.health_rings.rhr %}
+          <div class="mini-ring zone-ring-{{ data.health_rings.rhr.color }}" style="--pct: {{ data.health_rings.rhr.pct }};">
+            <div class="mini-ring-inner">
+              <div class="mini-ring-value">{{ data.latest_rhr }}</div>
+            </div>
           </div>
+          {% else %}
+          <div class="stat-value">{{ data.latest_rhr }}</div>
+          {% endif %}
+          {% if data.trend_arrows.rhr %}<span class="trend-arrow trend-{{ data.trend_arrows.rhr.color }}">{{ data.trend_arrows.rhr.arrow }}</span>{% endif %}
         </div>
         <div class="stat-card">
           <div class="stat-label">HRV</div>
-          <div class="stat-value">
-            {{ data.latest_hrv }}{% if data.trend_arrows.hrv %}<span class="trend-arrow trend-{{ data.trend_arrows.hrv.color }}">{{ data.trend_arrows.hrv.arrow }}</span>{% endif %}
+          {% if data.health_rings.hrv %}
+          <div class="mini-ring zone-ring-{{ data.health_rings.hrv.color }}" style="--pct: {{ data.health_rings.hrv.pct }};">
+            <div class="mini-ring-inner">
+              <div class="mini-ring-value">{{ data.latest_hrv }}</div>
+            </div>
           </div>
+          {% else %}
+          <div class="stat-value">{{ data.latest_hrv }}</div>
+          {% endif %}
+          {% if data.trend_arrows.hrv %}<span class="trend-arrow trend-{{ data.trend_arrows.hrv.color }}">{{ data.trend_arrows.hrv.arrow }}</span>{% endif %}
         </div>
         <div class="stat-card">
           <div class="stat-label">Avg Sleep</div>
-          <div class="stat-value">
-            {{ data.avg_sleep }}{% if data.trend_arrows.sleep %}<span class="trend-arrow trend-{{ data.trend_arrows.sleep.color }}">{{ data.trend_arrows.sleep.arrow }}</span>{% endif %}
+          {% if data.health_rings.sleep %}
+          <div class="mini-ring zone-ring-{{ data.health_rings.sleep.color }}" style="--pct: {{ data.health_rings.sleep.pct }};">
+            <div class="mini-ring-inner">
+              <div class="mini-ring-value">{{ data.avg_sleep }}</div>
+            </div>
           </div>
+          {% else %}
+          <div class="stat-value">{{ data.avg_sleep }}</div>
+          {% endif %}
+          {% if data.trend_arrows.sleep %}<span class="trend-arrow trend-{{ data.trend_arrows.sleep.color }}">{{ data.trend_arrows.sleep.arrow }}</span>{% endif %}
         </div>
         <div class="stat-card">
           <div class="stat-label">Weight</div>
@@ -1248,6 +1344,48 @@ def save_note(text):
     return notes
 
 
+FEELING_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "daily_feeling.json")
+MAX_FEELINGS = 30
+
+
+def load_feelings():
+    if not os.path.exists(FEELING_FILE):
+        return []
+    try:
+        with open(FEELING_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def save_feeling(value):
+    feelings = [f for f in load_feelings() if f.get("date") != date.today().isoformat()]
+    feelings.append({"date": date.today().isoformat(), "value": value})
+    feelings = feelings[-MAX_FEELINGS:]
+    try:
+        with open(FEELING_FILE, "w") as f:
+            json.dump(feelings, f)
+    except OSError:
+        pass
+    return feelings
+
+
+def classify_feeling(value):
+    if value >= 8:
+        return "green"
+    if value <= 3:
+        return "red"
+    return "grey"
+
+
+def get_latest_feeling():
+    feelings = load_feelings()
+    if not feelings:
+        return None
+    latest = feelings[-1]
+    return {"value": latest["value"], "color": classify_feeling(latest["value"])}
+
+
 def require_login():
     return session.get("logged_in") is True
 
@@ -1280,6 +1418,7 @@ def home():
         HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
         data=None, error=None, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
         notes=load_notes(), chat_answer=None, chat_error=None,
+        feelings=load_feelings(), latest_feeling=get_latest_feeling(),
     )
 
 
@@ -1550,6 +1689,34 @@ def trend_arrow(current, previous, higher_is_better):
     return {"arrow": arrow, "color": color}
 
 
+def compute_health_rings(latest_rhr, latest_hrv, avg_sleep_hours, trend_arrows):
+    """Rough 0-100 fill percentages for the small Garmin-style ring gauges.
+    These are visual approximations over sensible physiological ranges, not
+    personalized thresholds."""
+
+    def clamp(v):
+        return max(0, min(100, v))
+
+    rings = {}
+
+    if isinstance(latest_rhr, (int, float)):
+        pct = clamp(round(100 - (latest_rhr - 40) / (80 - 40) * 100))
+        arrow = trend_arrows.get("rhr")
+        rings["rhr"] = {"pct": pct, "color": arrow["color"] if arrow else "grey"}
+
+    if isinstance(latest_hrv, (int, float)):
+        pct = clamp(round((latest_hrv - 20) / (120 - 20) * 100))
+        arrow = trend_arrows.get("hrv")
+        rings["hrv"] = {"pct": pct, "color": arrow["color"] if arrow else "grey"}
+
+    if isinstance(avg_sleep_hours, (int, float)):
+        pct = clamp(round(avg_sleep_hours / 9 * 100))
+        arrow = trend_arrows.get("sleep")
+        rings["sleep"] = {"pct": pct, "color": arrow["color"] if arrow else "grey"}
+
+    return rings
+
+
 def compute_trend_arrows(wellness):
     rhr_latest, rhr_prev = last_two_values(wellness, "restingHR")
     hrv_latest, hrv_prev = last_two_values(wellness, "hrv")
@@ -1637,7 +1804,7 @@ def compute_metrics(wellness):
     }
 
 
-def build_data_text(recent_activities, wellness, season_stats, notes=None):
+def build_data_text(recent_activities, wellness, season_stats, notes=None, feelings=None):
     lines = ["RECENT ACTIVITIES (last {} days):".format(DAYS_BACK)]
     if not recent_activities:
         lines.append("(no activities found on Intervals.icu for this period)")
@@ -1689,6 +1856,11 @@ def build_data_text(recent_activities, wellness, season_stats, notes=None):
         lines.append("\nCOACH NOTES (things the athlete has told you before, most recent last):")
         for n in notes:
             lines.append("- {date}: {text}".format(date=n.get("date", ""), text=n.get("text", "")))
+
+    if feelings:
+        lines.append("\nSELF-REPORTED DAILY FEELING (1=terrible, 10=amazing):")
+        for f in feelings:
+            lines.append("- {date}: {value}/10".format(date=f.get("date", ""), value=f.get("value", "")))
 
     return "\n".join(lines)
 
@@ -1846,17 +2018,22 @@ def analyze():
         )
         recent_trend = compute_recent_trend(wellness, n=5)
         trend_arrows = compute_trend_arrows(wellness)
+        health_rings = compute_health_rings(
+            metrics["latest_rhr"], metrics["latest_hrv"], metrics["avg_sleep_hours"], trend_arrows
+        )
         best_watts, best_watts_debug = get_best_watts()
         recent_calories = sum(a.get("calories") or 0 for a in recent_activities)
         avg_daily_calories = round(recent_calories / DAYS_BACK) if DAYS_BACK else 0
         notes = load_notes()
-        data_text = build_data_text(recent_activities, wellness, season_stats, notes)
+        feelings = load_feelings()
+        data_text = build_data_text(recent_activities, wellness, season_stats, notes, feelings)
         analysis = ask_claude(data_text, metrics)
         data = {
             **metrics, **season_stats, **analysis, **energy_bank,
             "avg_daily_calories": avg_daily_calories,
             "recent_trend": recent_trend,
             "trend_arrows": trend_arrows,
+            "health_rings": health_rings,
             "best_watts": best_watts,
             "best_watts_debug": best_watts_debug,
         }
@@ -1872,6 +2049,7 @@ def analyze():
         HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
         data=data, error=error, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
         notes=load_notes(), chat_answer=None, chat_error=None,
+        feelings=load_feelings(), latest_feeling=get_latest_feeling(),
     )
 
 
@@ -1907,6 +2085,29 @@ def ask():
         HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
         data=current_data, error=None, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
         notes=load_notes(), chat_answer=chat_answer, chat_error=chat_error,
+        feelings=load_feelings(), latest_feeling=get_latest_feeling(),
+    )
+
+
+@app.route("/log-feeling", methods=["POST"])
+def log_feeling():
+    if not require_login():
+        return redirect(url_for("login"))
+
+    error = None
+    try:
+        value = int(request.form.get("feeling", ""))
+        if not 1 <= value <= 10:
+            raise ValueError
+        save_feeling(value)
+    except (ValueError, TypeError):
+        error = "Please pick a value between 1 and 10."
+
+    return render_template_string(
+        HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
+        data=session.get("last_data"), error=error, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
+        notes=load_notes(), chat_answer=None, chat_error=None,
+        feelings=load_feelings(), latest_feeling=get_latest_feeling(),
     )
 
 
