@@ -657,6 +657,25 @@ h1.page-title {
   font-size: 15px;
 }
 
+.wearable-row {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.wearable-stat {
+  font-size: 13px;
+  color: var(--grey-zone);
+}
+
+.wearable-stat strong {
+  color: var(--white);
+  font-family: 'Bayon', sans-serif;
+  font-weight: 400;
+}
+
 .energy-ring {
   width: 148px;
   height: 148px;
@@ -1050,6 +1069,17 @@ HOME_PAGE = """
         </div>
       </div>
       <div class="zone-badge zone-{{ data.energy_zone }} display">{{ data.energy_label }}</div>
+
+      {% if data.latest_readiness is not none or data.latest_spo2 is not none %}
+      <div class="wearable-row">
+        {% if data.latest_readiness is not none %}
+        <span class="wearable-stat">Wearable Readiness: <strong>{{ data.latest_readiness }}</strong></span>
+        {% endif %}
+        {% if data.latest_spo2 is not none %}
+        <span class="wearable-stat">SpO2: <strong>{{ data.latest_spo2 }}%</strong></span>
+        {% endif %}
+      </div>
+      {% endif %}
 
       {% if data.recent_trend %}
       <div class="trend-row">
@@ -1548,7 +1578,7 @@ def fetch_intervals_data():
         f"?oldest={season_oldest}&newest={newest}&fields={activities_fields}"
     )
 
-    wellness_fields = "id,restingHR,hrv,sleepSecs,weight,ctl,atl,rampRate,comments"
+    wellness_fields = "id,restingHR,hrv,sleepSecs,weight,ctl,atl,rampRate,comments,readiness,spO2"
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
         f"?oldest={recent_oldest}&newest={newest}&fields={wellness_fields}"
@@ -1789,6 +1819,15 @@ def compute_metrics(wellness):
     weight_entries = [w for w in sorted_wellness if w.get("weight")]
     latest_weight = weight_entries[-1]["weight"] if weight_entries else None
 
+    # Readiness/SpO2 only exist if synced from a compatible wearable (Oura,
+    # HRV4Training, some Garmins) - look back for the most recent value, same
+    # as weight, and leave None (not shown) if the athlete doesn't sync these.
+    readiness_entries = [w for w in sorted_wellness if w.get("readiness") is not None]
+    latest_readiness = readiness_entries[-1]["readiness"] if readiness_entries else None
+
+    spo2_entries = [w for w in sorted_wellness if w.get("spO2") is not None]
+    latest_spo2 = spo2_entries[-1]["spO2"] if spo2_entries else None
+
     return {
         "ctl": round(ctl, 1) if ctl is not None else "n/a",
         "atl": round(atl, 1) if atl is not None else "n/a",
@@ -1801,6 +1840,8 @@ def compute_metrics(wellness):
         "avg_sleep": f"{avg_sleep}h" if avg_sleep is not None else "n/a",
         "avg_sleep_hours": avg_sleep,
         "latest_weight": f"{round(latest_weight, 1)}kg" if latest_weight is not None else "n/a",
+        "latest_readiness": round(latest_readiness) if latest_readiness is not None else None,
+        "latest_spo2": round(latest_spo2, 1) if latest_spo2 is not None else None,
     }
 
 
