@@ -687,9 +687,9 @@ h1.page-title {
   box-shadow: 0 0 30px -4px var(--ring-glow);
 }
 
-.energy-ring.zone-ring-green { --ring-color: var(--green); --ring-glow: rgba(63,185,95,0.55); }
-.energy-ring.zone-ring-grey  { --ring-color: var(--grey-zone); --ring-glow: rgba(160,160,160,0.4); }
-.energy-ring.zone-ring-red   { --ring-color: var(--red); --ring-glow: rgba(216,30,44,0.55); }
+.zone-ring-green { --ring-color: var(--green); --ring-glow: rgba(63,185,95,0.55); }
+.zone-ring-grey  { --ring-color: var(--grey-zone); --ring-glow: rgba(160,160,160,0.4); }
+.zone-ring-red   { --ring-color: var(--red); --ring-glow: rgba(216,30,44,0.55); }
 
 .energy-ring-inner {
   width: 100%;
@@ -1560,9 +1560,11 @@ def get_best_watts():
 
 
 def fetch_intervals_data():
-    """Fetch SEASON_DAYS_BACK days of activities (with zone times) plus
-    DAYS_BACK days of wellness. The recent-window activities are simply the
-    tail end of the season list, so we only hit the activities endpoint once."""
+    """Fetch SEASON_DAYS_BACK days of activities (with zone times) AND
+    wellness. Wellness needs the longer window too now, so we can learn the
+    athlete's own normal range for Form/Fatigue instead of judging them
+    against generic fixed thresholds. The recent-window subsets are simply
+    the tail end of these season-length lists."""
     season_oldest = (date.today() - timedelta(days=SEASON_DAYS_BACK)).isoformat()
     recent_oldest = (date.today() - timedelta(days=DAYS_BACK)).isoformat()
     newest = date.today().isoformat()
@@ -1581,7 +1583,7 @@ def fetch_intervals_data():
     wellness_fields = "id,restingHR,hrv,sleepSecs,weight,ctl,atl,rampRate,comments,readiness,spO2"
     wellness_url = (
         f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness"
-        f"?oldest={recent_oldest}&newest={newest}&fields={wellness_fields}"
+        f"?oldest={season_oldest}&newest={newest}&fields={wellness_fields}"
     )
 
     act_resp = requests.get(activities_url, headers=headers, timeout=30)
@@ -1597,13 +1599,63 @@ def fetch_intervals_data():
         a for a in season_activities if a.get("start_date_local", "")[:10] >= recent_oldest
     ]
 
-    wellness = wel_resp.json()
-    return recent_activities, season_activities, wellness
+    season_wellness = wel_resp.json()
+    season_wellness = [
+        w for w in season_wellness if w.get("id", "") >= season_oldest
+    ]
+    recent_wellness = [w for w in season_wellness if w.get("id", "") >= recent_oldest]
+
+    return recent_activities, season_activities, recent_wellness, season_wellness
 
 
-def classify_form(tsb):
+def percentile(sorted_values, pct):
+    """Simple linear-interpolation percentile, no numpy dependency."""
+    if not sorted_values:
+        return None
+    if len(sorted_values) == 1:
+        return sorted_values[0]
+    k = (len(sorted_values) - 1) * pct
+    f, c = int(k), min(int(k) + 1, len(sorted_values) - 1)
+    if f == c:
+        return sorted_values[f]
+    return sorted_values[f] + (sorted_values[c] - sorted_values[f]) * (k - f)
+
+
+def personal_form_thresholds(season_wellness, min_points=14):
+    """The athlete's own p33/p67 TSB range over the season window, so Form is
+    judged against their normal baseline instead of a generic cutoff."""
+    tsb_values = sorted(
+        w["ctl"] - w["atl"] for w in season_wellness
+        if w.get("ctl") is not None and w.get("atl") is not None
+    )
+    if len(tsb_values) < min_points:
+        return None
+    return percentile(tsb_values, 0.33), percentile(tsb_values, 0.67)
+
+
+def personal_fatigue_thresholds(season_wellness, min_points=14):
+    """The athlete's own p33/p67 ATL:CTL ratio range over the season window."""
+    ratios = sorted(
+        w["atl"] / w["ctl"] for w in season_wellness
+        if w.get("ctl") not in (None, 0) and w.get("atl") is not None
+    )
+    if len(ratios) < min_points:
+        return None
+    return percentile(ratios, 0.33), percentile(ratios, 0.67)
+
+
+def classify_form(tsb, personal_thresholds=None):
     if tsb is None:
         return "grey"
+    if personal_thresholds:
+        p33, p67 = personal_thresholds
+        if tsb >= p67:
+            return "green"
+        if tsb <= p33:
+            return "red"
+        return "grey"
+    # Fallback generic thresholds - only used when there isn't enough
+    # history yet to learn the athlete's own normal range.
     if tsb >= 5:
         return "green"
     if tsb <= -10:
@@ -1611,12 +1663,17 @@ def classify_form(tsb):
     return "grey"
 
 
-def classify_fatigue(atl, ctl):
-    if atl is None or ctl is None:
-        return "grey"
-    if ctl == 0:
+def classify_fatigue(atl, ctl, personal_thresholds=None):
+    if atl is None or ctl is None or ctl == 0:
         return "grey"
     ratio = atl / ctl
+    if personal_thresholds:
+        p33, p67 = personal_thresholds
+        if ratio <= p33:
+            return "green"
+        if ratio >= p67:
+            return "red"
+        return "grey"
     if ratio >= 1.15:
         return "red"
     if ratio <= 0.95:
@@ -1760,7 +1817,7 @@ def compute_trend_arrows(wellness):
     }
 
 
-def compute_recent_trend(wellness, n=5):
+def compute_recent_trend(wellness, n=5, form_thresholds=None):
     """Daily Form (TSB) for the last n days that have both CTL and ATL, for a
     quick at-a-glance trend next to the Energy Bank."""
     daily = []
@@ -1773,7 +1830,10 @@ def compute_recent_trend(wellness, n=5):
             weekday = date.fromisoformat(w["id"]).strftime("%a")
         except (ValueError, KeyError):
             weekday = w.get("id", "")[-2:]
-        daily.append({"date": w.get("id", ""), "weekday": weekday, "tsb": tsb, "zone": classify_form(tsb)})
+        daily.append({
+            "date": w.get("id", ""), "weekday": weekday, "tsb": tsb,
+            "zone": classify_form(tsb, form_thresholds),
+        })
     return daily[-n:]
 
 
@@ -1803,7 +1863,7 @@ def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours):
     return {"energy_score": score, "energy_label": label, "energy_zone": zone}
 
 
-def compute_metrics(wellness):
+def compute_metrics(wellness, form_thresholds=None, fatigue_thresholds=None):
     sorted_wellness = sorted(wellness, key=lambda w: w.get("id", ""))
     latest = sorted_wellness[-1] if sorted_wellness else {}
 
@@ -1833,8 +1893,8 @@ def compute_metrics(wellness):
         "atl": round(atl, 1) if atl is not None else "n/a",
         "tsb": tsb if tsb is not None else "n/a",
         "fitness_zone": classify_fitness_trend(wellness),
-        "fatigue_zone": classify_fatigue(atl, ctl),
-        "form_zone": classify_form(tsb),
+        "fatigue_zone": classify_fatigue(atl, ctl, fatigue_thresholds),
+        "form_zone": classify_form(tsb, form_thresholds),
         "latest_rhr": latest.get("restingHR", "n/a"),
         "latest_hrv": latest.get("hrv", "n/a"),
         "avg_sleep": f"{avg_sleep}h" if avg_sleep is not None else "n/a",
@@ -1916,6 +1976,10 @@ def ask_claude(data_text, metrics):
         "{athlete_context} "
         "They currently have Fitness (CTL) = {ctl} [{fitness_zone} zone], "
         "Fatigue (ATL) = {atl} [{fatigue_zone} zone], Form (TSB) = {tsb} [{form_zone} zone]. "
+        "These green/grey/red zones are calibrated against THIS athlete's own 90-day baseline, "
+        "not a generic cutoff — so 'grey' or even 'red' here does not necessarily mean something "
+        "is wrong for an athlete who trains at chronic high load; it means it's unusual *for them*. "
+        "Frame it that way rather than implying alarm by default. "
         "Analyze the following data. Some wellness entries may include a free-text note "
         "(e.g. reporting an injury, illness or soreness) — if present, factor it explicitly "
         "into fatigue_signals and into the recommendation. The SEASON SUMMARY gives real "
@@ -2051,13 +2115,15 @@ def analyze():
     error = None
     data = None
     try:
-        recent_activities, season_activities, wellness = fetch_intervals_data()
-        metrics = compute_metrics(wellness)
+        recent_activities, season_activities, wellness, season_wellness = fetch_intervals_data()
+        form_thresholds = personal_form_thresholds(season_wellness)
+        fatigue_thresholds = personal_fatigue_thresholds(season_wellness)
+        metrics = compute_metrics(wellness, form_thresholds, fatigue_thresholds)
         season_stats = compute_season_stats(season_activities)
         energy_bank = compute_energy_bank(
             metrics["form_zone"], metrics["fatigue_zone"], metrics["avg_sleep_hours"]
         )
-        recent_trend = compute_recent_trend(wellness, n=5)
+        recent_trend = compute_recent_trend(wellness, n=5, form_thresholds=form_thresholds)
         trend_arrows = compute_trend_arrows(wellness)
         health_rings = compute_health_rings(
             metrics["latest_rhr"], metrics["latest_hrv"], metrics["avg_sleep_hours"], trend_arrows
