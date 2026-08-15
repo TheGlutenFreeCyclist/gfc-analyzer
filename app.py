@@ -467,17 +467,46 @@ h1.page-title {
 
 .prose-card:last-child { margin-bottom: 0; }
 
+.prose-card summary,
+.recommendation-box summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prose-card summary::-webkit-details-marker,
+.recommendation-box summary::-webkit-details-marker {
+  display: none;
+}
+
+.prose-card summary::after,
+.recommendation-box summary::after {
+  content: '+';
+  font-family: 'Bayon', sans-serif;
+  font-size: 22px;
+  color: var(--grey-zone);
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.prose-card[open] summary::after,
+.recommendation-box[open] summary::after {
+  content: '\2212';
+}
+
 .prose-card h3 {
   font-family: 'Bayon', sans-serif;
   color: var(--red);
   font-size: 16px;
-  margin: 0 0 10px 0;
+  margin: 0;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .prose-card p {
-  margin: 0;
+  margin: 12px 0 0 0;
   line-height: 1.6;
   font-size: 15px;
 }
@@ -491,15 +520,16 @@ h1.page-title {
   font-family: 'Bayon', sans-serif;
   color: var(--red);
   font-size: 20px;
-  margin: 0 0 12px 0;
+  margin: 0;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .recommendation-box p {
-  margin: 0;
+  margin: 14px 0 0 0;
   line-height: 1.65;
   font-size: 15px;
+  white-space: pre-line;
 }
 
 .error-panel {
@@ -863,9 +893,15 @@ h1.page-title {
 }
 
 .trend-bar-value {
-  font-size: 11px;
-  color: var(--white);
+  font-size: 13px;
+  font-family: 'Bayon', sans-serif;
   margin-top: 6px;
+}
+
+.trend-bar-raw {
+  font-size: 9px;
+  color: var(--grey-zone);
+  margin-top: 1px;
 }
 
 .trend-bar-day {
@@ -951,6 +987,15 @@ h1.page-title {
     color: black !important;
   }
   .subtitle, .stat-label, .stat-sub { color: #444 !important; }
+  .prose-card summary::after, .recommendation-box summary::after {
+    display: none !important;
+  }
+  .prose-card p, .recommendation-box p {
+    display: block !important;
+  }
+  .prose-card summary, .recommendation-box summary {
+    pointer-events: none;
+  }
 }
 """
 
@@ -1083,15 +1128,20 @@ HOME_PAGE = """
 
       {% if data.recent_trend %}
       <div class="trend-row">
-        <p class="stat-label" style="margin-bottom:4px;">Last 5 Days &middot; Form Trend</p>
-        <p class="stat-sub" style="margin-bottom:10px;">Negative means fatigue is currently outweighing fitness — normal during a hard block, worth watching if it stays low for many days.</p>
+        <p class="stat-label" style="margin-bottom:4px;">Last 5 Days &middot; Form vs. Your Norm</p>
+        <p class="stat-sub" style="margin-bottom:10px;">Shown relative to your own typical Form &mdash; not a generic scale. Near zero means a completely ordinary day for you.</p>
         <div class="trend-bars">
           {% for d in data.recent_trend %}
           <div class="trend-bar-col">
             <div class="trend-bar-track">
               <div class="trend-bar-fill zone-fill-{{ d.zone }}" data-trend-height="{{ [((d.tsb + 30) / 60 * 100), 6]|max }}" style="height:6%;"></div>
             </div>
-            <div class="trend-bar-value">{{ d.tsb }}</div>
+            {% if d.delta is not none %}
+            <div class="trend-bar-value trend-{{ d.zone }}">{{ "%+d"|format(d.delta) }}</div>
+            <div class="trend-bar-raw">TSB {{ d.tsb }}</div>
+            {% else %}
+            <div class="trend-bar-value trend-{{ d.zone }}">{{ d.tsb }}</div>
+            {% endif %}
             <div class="trend-bar-day">{{ d.weekday }}</div>
           </div>
           {% endfor %}
@@ -1100,10 +1150,10 @@ HOME_PAGE = """
       {% endif %}
     </div>
 
-    <div class="recommendation-box">
-      <h3 class="display">Recommendation</h3>
+    <details class="recommendation-box">
+      <summary><h3 class="display">Recommendation</h3></summary>
       <p>{{ data.recommendation }}</p>
-    </div>
+    </details>
 
     <div class="section training-section">
       <h2 class="section-title display">Training</h2>
@@ -1130,10 +1180,10 @@ HOME_PAGE = """
           <div class="stat-sub">kcal burned in training/day, last {{ days }} days</div>
         </div>
       </div>
-      <div class="prose-card">
-        <h3>Training Load</h3>
+      <details class="prose-card">
+        <summary><h3>Training Load</h3></summary>
         <p>{{ data.training_load }}</p>
-      </div>
+      </details>
     </div>
 
     <div class="section health-section">
@@ -1186,10 +1236,10 @@ HOME_PAGE = """
           </div>
         </div>
       </div>
-      <div class="prose-card">
-        <h3>Fatigue Signals</h3>
+      <details class="prose-card">
+        <summary><h3>Fatigue Signals</h3></summary>
         <p>{{ data.fatigue_signals }}</p>
-      </div>
+      </details>
     </div>
 
     <div class="section power-section">
@@ -1236,14 +1286,14 @@ HOME_PAGE = """
           <span><i class="zone-dot zone-dot-high"></i>High {{ data.zone_high_pct }}%</span>
         </div>
       </div>
-      <div class="prose-card">
-        <h3>Training Distribution</h3>
+      <details class="prose-card">
+        <summary><h3>Training Distribution</h3></summary>
         <p>{{ data.season_distribution }}</p>
-      </div>
-      <div class="prose-card">
-        <h3>Seasonal Outlook</h3>
+      </details>
+      <details class="prose-card">
+        <summary><h3>Seasonal Outlook</h3></summary>
         <p>{{ data.season_outlook }}</p>
-      </div>
+      </details>
     </div>
 
     <button type="button" class="btn display pdf-btn no-print" id="pdf-btn">Download PDF</button>
@@ -1633,6 +1683,19 @@ def personal_form_thresholds(season_wellness, min_points=14):
     return percentile(tsb_values, 0.33), percentile(tsb_values, 0.67)
 
 
+def personal_form_median(season_wellness, min_points=14):
+    """The athlete's own typical TSB, so day-to-day form can be shown as a
+    small delta from what's normal FOR THEM instead of a scary absolute
+    number that's just a side effect of training at chronic high load."""
+    tsb_values = sorted(
+        w["ctl"] - w["atl"] for w in season_wellness
+        if w.get("ctl") is not None and w.get("atl") is not None
+    )
+    if len(tsb_values) < min_points:
+        return None
+    return percentile(tsb_values, 0.5)
+
+
 def personal_fatigue_thresholds(season_wellness, min_points=14):
     """The athlete's own p33/p67 ATL:CTL ratio range over the season window."""
     ratios = sorted(
@@ -1817,9 +1880,13 @@ def compute_trend_arrows(wellness):
     }
 
 
-def compute_recent_trend(wellness, n=5, form_thresholds=None):
+def compute_recent_trend(wellness, n=5, form_thresholds=None, form_median=None):
     """Daily Form (TSB) for the last n days that have both CTL and ATL, for a
-    quick at-a-glance trend next to the Energy Bank."""
+    quick at-a-glance trend next to the Energy Bank. Shown primarily as a
+    delta from the athlete's own typical TSB, not the raw absolute number -
+    for someone who trains at chronic high load, the raw number is nearly
+    always a scary-looking double-digit negative even on a completely
+    ordinary day."""
     daily = []
     for w in sorted(wellness, key=lambda x: x.get("id", "")):
         ctl, atl = w.get("ctl"), w.get("atl")
@@ -1830,8 +1897,9 @@ def compute_recent_trend(wellness, n=5, form_thresholds=None):
             weekday = date.fromisoformat(w["id"]).strftime("%a")
         except (ValueError, KeyError):
             weekday = w.get("id", "")[-2:]
+        delta = round(tsb - form_median, 1) if form_median is not None else None
         daily.append({
-            "date": w.get("id", ""), "weekday": weekday, "tsb": tsb,
+            "date": w.get("id", ""), "weekday": weekday, "tsb": tsb, "delta": delta,
             "zone": classify_form(tsb, form_thresholds),
         })
     return daily[-n:]
@@ -1989,8 +2057,8 @@ def ask_claude(data_text, metrics):
         "(low > moderate > high, but a meaningful moderate chunk), or threshold/sweetspot-heavy "
         "(a large moderate-intensity share).\n\n"
         "Respond ONLY with valid JSON (no markdown fences, no extra text) with exactly these "
-        "keys, each a plain-prose string with no bullet points, no markdown symbols, no line "
-        "breaks:\n"
+        "keys, each a plain-prose string with no bullet points and no markdown symbols. Every "
+        "key except \"recommendation\" must have no line breaks either:\n"
         '- "training_load": 2-3 sentences on how recent training load and volume (last {days} '
         "days) have been trending\n"
         '- "season_distribution": 2-3 sentences classifying the {season_days}-day training '
@@ -1999,8 +2067,14 @@ def ask_claude(data_text, metrics):
         '- "season_outlook": 3-4 sentences on whether this {season_days}-day pattern is likely '
         "to keep producing improvements given the athlete's race season, and what to adjust if not\n"
         '- "fatigue_signals": 2-3 sentences on resting HR, HRV, sleep trends and any logged notes\n'
-        '- "recommendation": a detailed, specific recommendation (4-6 sentences) for the next '
-        "3-5 days of training, referencing the actual numbers above\n\n"
+        '- "recommendation": start with 3-5 sentences of specific guidance for the next 3-5 days '
+        "referencing the actual numbers above. Then, separated by a blank line (a single \\n\\n), "
+        "give ONE concrete prototype workout the athlete could do in their next key session to "
+        "directly address whatever would most improve their current Fitness/Fatigue/Form and "
+        "season distribution — structured as short labelled lines separated by \\n (Warm-up / "
+        "Main set / Cooldown), with specific duration, target watts (using their FTP and power "
+        "profile from the athlete context above) and rep counts, matching how they actually train "
+        "(Zwift, ERG on for structured work, ERG off for max efforts)\n\n"
         "DATA:\n{data_text}"
     ).format(
         today_date=today.isoformat(), today_weekday=today.strftime("%A"),
@@ -2020,7 +2094,7 @@ def ask_claude(data_text, metrics):
         },
         json={
             "model": "claude-sonnet-4-6",
-            "max_tokens": 1500,
+            "max_tokens": 1900,
             "messages": [{"role": "user", "content": prompt}],
         },
         timeout=60,
@@ -2117,13 +2191,14 @@ def analyze():
     try:
         recent_activities, season_activities, wellness, season_wellness = fetch_intervals_data()
         form_thresholds = personal_form_thresholds(season_wellness)
+        form_median = personal_form_median(season_wellness)
         fatigue_thresholds = personal_fatigue_thresholds(season_wellness)
         metrics = compute_metrics(wellness, form_thresholds, fatigue_thresholds)
         season_stats = compute_season_stats(season_activities)
         energy_bank = compute_energy_bank(
             metrics["form_zone"], metrics["fatigue_zone"], metrics["avg_sleep_hours"]
         )
-        recent_trend = compute_recent_trend(wellness, n=5, form_thresholds=form_thresholds)
+        recent_trend = compute_recent_trend(wellness, n=5, form_thresholds=form_thresholds, form_median=form_median)
         trend_arrows = compute_trend_arrows(wellness)
         health_rings = compute_health_rings(
             metrics["latest_rhr"], metrics["latest_hrv"], metrics["avg_sleep_hours"], trend_arrows
