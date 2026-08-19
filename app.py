@@ -468,7 +468,8 @@ h1.page-title {
 .prose-card:last-child { margin-bottom: 0; }
 
 .prose-card summary,
-.recommendation-box summary {
+.recommendation-box summary,
+.training-tips-box summary {
   cursor: pointer;
   list-style: none;
   display: flex;
@@ -477,23 +478,28 @@ h1.page-title {
 }
 
 .prose-card summary::-webkit-details-marker,
-.recommendation-box summary::-webkit-details-marker {
+.recommendation-box summary::-webkit-details-marker,
+.training-tips-box summary::-webkit-details-marker {
   display: none;
 }
 
 .prose-card summary::after,
-.recommendation-box summary::after {
-  content: '+';
-  font-family: 'Bayon', sans-serif;
-  font-size: 22px;
+.recommendation-box summary::after,
+.training-tips-box summary::after {
+  content: '\25B8';
+  font-size: 16px;
   color: var(--grey-zone);
   margin-left: 12px;
   flex-shrink: 0;
+  transition: transform 0.2s ease;
+  transform: rotate(0deg);
+  display: inline-block;
 }
 
 .prose-card[open] summary::after,
-.recommendation-box[open] summary::after {
-  content: '\2212';
+.recommendation-box[open] summary::after,
+.training-tips-box[open] summary::after {
+  transform: rotate(90deg);
 }
 
 .prose-card h3 {
@@ -526,6 +532,30 @@ h1.page-title {
 }
 
 .recommendation-box p {
+  margin: 14px 0 0 0;
+  line-height: 1.65;
+  font-size: 15px;
+  white-space: pre-line;
+}
+
+.training-tips-box {
+  border: 1px solid var(--red);
+  border-radius: 10px;
+  padding: 22px;
+  margin-top: 20px;
+  margin-bottom: 24px;
+}
+
+.training-tips-box h3 {
+  font-family: 'Bayon', sans-serif;
+  color: var(--red);
+  font-size: 20px;
+  margin: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.training-tips-text {
   margin: 14px 0 0 0;
   line-height: 1.65;
   font-size: 15px;
@@ -625,10 +655,11 @@ h1.page-title {
 }
 
 .recommendation-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.15s; }
-.training-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.3s; }
-.health-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.45s; }
-.power-section    { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.6s; }
-.season-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.75s; }
+.training-tips-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.25s; }
+.training-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.35s; }
+.health-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.5s; }
+.power-section    { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.65s; }
+.season-section   { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.8s; }
 
 .energy-bank-card {
   border: 1px solid var(--white);
@@ -975,25 +1006,25 @@ h1.page-title {
     background: white;
     color: black;
   }
-  .section, .recommendation-box, .energy-bank-card, .stat-card, .prose-card {
+  .section, .recommendation-box, .training-tips-box, .energy-bank-card, .stat-card, .prose-card {
     border-color: black !important;
     box-shadow: none !important;
     opacity: 1 !important;
     animation: none !important;
     break-inside: avoid;
   }
-  .section-title, .page-title, .recommendation-box h3, .energy-bank-label,
+  .section-title, .page-title, .recommendation-box h3, .training-tips-box h3, .energy-bank-label,
   .zone-badge, .prose-card h3 {
     color: black !important;
   }
   .subtitle, .stat-label, .stat-sub { color: #444 !important; }
-  .prose-card summary::after, .recommendation-box summary::after {
+  .prose-card summary::after, .recommendation-box summary::after, .training-tips-box summary::after {
     display: none !important;
   }
-  .prose-card p, .recommendation-box p {
+  .prose-card p, .recommendation-box p, .training-tips-text {
     display: block !important;
   }
-  .prose-card summary, .recommendation-box summary {
+  .prose-card summary, .recommendation-box summary, .training-tips-box summary {
     pointer-events: none;
   }
 }
@@ -1151,8 +1182,14 @@ HOME_PAGE = """
     </div>
 
     <details class="recommendation-box">
-      <summary><h3 class="display">Recommendation</h3></summary>
+      <summary><h3 class="display">Coach's Suggestion</h3></summary>
       <p>{{ data.recommendation }}</p>
+    </details>
+
+    <details class="training-tips-box">
+      <summary><h3 class="display">Training Tips</h3></summary>
+      <p class="stat-sub" style="margin-top:10px;">Suggested 60-minute trainer sessions for your next Monday, Wednesday and Friday, based on where you stand right now.</p>
+      <p class="training-tips-text">{{ data.training_tips }}</p>
     </details>
 
     <div class="section training-section">
@@ -2058,7 +2095,7 @@ def ask_claude(data_text, metrics):
         "(a large moderate-intensity share).\n\n"
         "Respond ONLY with valid JSON (no markdown fences, no extra text) with exactly these "
         "keys, each a plain-prose string with no bullet points and no markdown symbols. Every "
-        "key except \"recommendation\" must have no line breaks either:\n"
+        "key except \"training_tips\" must have no line breaks either:\n"
         '- "training_load": 2-3 sentences on how recent training load and volume (last {days} '
         "days) have been trending\n"
         '- "season_distribution": 2-3 sentences classifying the {season_days}-day training '
@@ -2067,14 +2104,21 @@ def ask_claude(data_text, metrics):
         '- "season_outlook": 3-4 sentences on whether this {season_days}-day pattern is likely '
         "to keep producing improvements given the athlete's race season, and what to adjust if not\n"
         '- "fatigue_signals": 2-3 sentences on resting HR, HRV, sleep trends and any logged notes\n'
-        '- "recommendation": start with 3-5 sentences of specific guidance for the next 3-5 days '
-        "referencing the actual numbers above. Then, separated by a blank line (a single \\n\\n), "
-        "give ONE concrete prototype workout the athlete could do in their next key session to "
-        "directly address whatever would most improve their current Fitness/Fatigue/Form and "
-        "season distribution — structured as short labelled lines separated by \\n (Warm-up / "
-        "Main set / Cooldown), with specific duration, target watts (using their FTP and power "
-        "profile from the athlete context above) and rep counts, matching how they actually train "
-        "(Zwift, ERG on for structured work, ERG off for max efforts)\n\n"
+        '- "recommendation": 3-5 sentences of specific, general guidance for the next 3-5 days '
+        "referencing the actual numbers above. Do not include a specific workout prescription "
+        "here - that goes in training_tips instead\n"
+        '- "training_tips": suggest ONE specific indoor trainer workout for EACH of the '
+        "athlete's next Monday, Wednesday and Friday sessions (their designated key/hard "
+        "training days), each capped at exactly 60 minutes total including warm-up and "
+        "cooldown, done indoors on rollers/trainer via Zwift. Pick each workout's focus based "
+        "on their current Fitness/Fatigue/Form and season distribution above. Format as three "
+        "blocks separated by a blank line (\\n\\n), each block structured as: a first line with "
+        "the day name in capitals followed by a colon and a short workout title; then the "
+        "structure (Warm-up / Main set / Cooldown) with duration and target watts (using their "
+        "FTP and power profile from the athlete context, ERG on for structured work, ERG off "
+        "for max efforts) all fitting within 60 minutes, each part on its own line; then a "
+        "final line starting with \"Why: \" explaining in 1-2 sentences why this workout suits "
+        "that specific day given their current numbers\n\n"
         "DATA:\n{data_text}"
     ).format(
         today_date=today.isoformat(), today_weekday=today.strftime("%A"),
