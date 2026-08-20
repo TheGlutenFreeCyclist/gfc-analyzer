@@ -2010,7 +2010,7 @@ def compute_metrics(wellness, form_thresholds=None, fatigue_thresholds=None):
     }
 
 
-def build_data_text(recent_activities, wellness, season_stats, notes=None, feelings=None):
+def build_data_text(recent_activities, wellness, season_stats, notes=None, feelings=None, best_watts=None):
     lines = ["RECENT ACTIVITIES (last {} days):".format(DAYS_BACK)]
     if not recent_activities:
         lines.append("(no activities found on Intervals.icu for this period)")
@@ -2039,6 +2039,13 @@ def build_data_text(recent_activities, wellness, season_stats, notes=None, feeli
             season_stats["zone_low_pct"], season_stats["zone_mod_pct"], season_stats["zone_high_pct"],
         )
     )
+
+    if best_watts:
+        lines.append("\nREAL POWER CURVE (actual best efforts, last 42 days - use these as the "
+                     "ceiling for any power target you prescribe, never exceed them for that "
+                     "duration or shorter):")
+        for p in best_watts:
+            lines.append("- {}: {}W".format(p["label"], p["watts"]))
 
     lines.append("\nWELLNESS (last {} days):".format(DAYS_BACK))
     for w in sorted(wellness, key=lambda x: x.get("id", "")):
@@ -2071,8 +2078,32 @@ def build_data_text(recent_activities, wellness, season_stats, notes=None, feeli
     return "\n".join(lines)
 
 
+def next_weekday_date(target_weekday, from_date):
+    """Next date matching target_weekday (0=Monday..6=Sunday) that is
+    strictly AFTER from_date - if today IS that weekday, jump to next week
+    rather than suggesting a session for a day that's already happening/over."""
+    days_ahead = target_weekday - from_date.weekday()
+    if days_ahead <= 0:
+        days_ahead += 7
+    return from_date + timedelta(days=days_ahead)
+
+
+def compute_next_key_days():
+    today = date.today()
+    mon = next_weekday_date(0, today)
+    wed = next_weekday_date(2, today)
+    fri = next_weekday_date(4, today)
+    return [
+        (d.strftime("%A"), d.strftime("%B %-d")) for d in (mon, wed, fri)
+    ]
+
+
 def ask_claude(data_text, metrics):
     today = date.today()
+    (mon_weekday, mon_date), (wed_weekday, wed_date), (fri_weekday, fri_date) = compute_next_key_days()
+    mon_label = f"{mon_weekday}, {mon_date}"
+    wed_label = f"{wed_weekday}, {wed_date}"
+    fri_label = f"{fri_weekday}, {fri_date}"
     prompt = (
         "You are an expert cycling coach. Today's real date is {today_date} ({today_weekday}). "
         "Use this to correctly name the actual weekday for any date you reference in your "
@@ -2107,18 +2138,25 @@ def ask_claude(data_text, metrics):
         '- "recommendation": 3-5 sentences of specific, general guidance for the next 3-5 days '
         "referencing the actual numbers above. Do not include a specific workout prescription "
         "here - that goes in training_tips instead\n"
-        '- "training_tips": suggest ONE specific indoor trainer workout for EACH of the '
-        "athlete's next Monday, Wednesday and Friday sessions (their designated key/hard "
-        "training days), each capped at exactly 60 minutes total including warm-up and "
-        "cooldown, done indoors on rollers/trainer via Zwift. Pick each workout's focus based "
-        "on their current Fitness/Fatigue/Form and season distribution above. Format as three "
-        "blocks separated by a blank line (\\n\\n), each block structured as: a first line with "
-        "the day name in capitals followed by a colon and a short workout title; then the "
-        "structure (Warm-up / Main set / Cooldown) with duration and target watts (using their "
-        "FTP and power profile from the athlete context, ERG on for structured work, ERG off "
-        "for max efforts) all fitting within 60 minutes, each part on its own line; then a "
-        "final line starting with \"Why: \" explaining in 1-2 sentences why this workout suits "
-        "that specific day given their current numbers\n\n"
+        '- "training_tips": ONE specific indoor trainer workout for EACH of these three exact '
+        "upcoming dates - {mon_label}, {wed_label}, {fri_label} (the athlete's designated "
+        "key/hard training days) - each capped at exactly 60 minutes total including warm-up "
+        "and cooldown, done indoors on rollers/trainer via Zwift. These dates are all strictly "
+        "in the future relative to today; never substitute a day that has already happened "
+        "this week. Every workout must be consistent with what you wrote in recommendation and "
+        "season_outlook above (e.g. if you called for more race-specific or race-pace effort "
+        "given the racing season, these workouts should reflect that, not undercut it with "
+        "lighter/generic intervals). All power targets must respect the REAL POWER CURVE data "
+        "below as a hard ceiling for that duration or shorter, and must be physiologically "
+        "realistic for a SEATED trainer effort - if an effort would realistically require "
+        "standing/sprinting (very short, near-maximal power), say so explicitly in that line "
+        "instead of prescribing an unrealistic seated wattage. Format as three blocks separated "
+        "by a blank line (\\n\\n), each block structured as: a first line with the exact date "
+        "(as given above) followed by a colon and a short workout title; then the structure "
+        "(Warm-up / Main set / Cooldown) with duration and target watts, each part on its own "
+        "line, all fitting within 60 minutes; then a final line starting with \"Why: \" "
+        "explaining in 1-2 sentences why this workout suits that specific date given their "
+        "current numbers\n\n"
         "DATA:\n{data_text}"
     ).format(
         today_date=today.isoformat(), today_weekday=today.strftime("%A"),
@@ -2126,6 +2164,7 @@ def ask_claude(data_text, metrics):
         ctl=metrics["ctl"], fitness_zone=metrics["fitness_zone"],
         atl=metrics["atl"], fatigue_zone=metrics["fatigue_zone"],
         tsb=metrics["tsb"], form_zone=metrics["form_zone"],
+        mon_label=mon_label, wed_label=wed_label, fri_label=fri_label,
         days=DAYS_BACK, season_days=SEASON_DAYS_BACK, data_text=data_text,
     )
 
@@ -2252,7 +2291,7 @@ def analyze():
         avg_daily_calories = round(recent_calories / DAYS_BACK) if DAYS_BACK else 0
         notes = load_notes()
         feelings = load_feelings()
-        data_text = build_data_text(recent_activities, wellness, season_stats, notes, feelings)
+        data_text = build_data_text(recent_activities, wellness, season_stats, notes, feelings, best_watts)
         analysis = ask_claude(data_text, metrics)
         data = {
             **metrics, **season_stats, **analysis, **energy_bank,
