@@ -204,7 +204,7 @@ FAVICON_B64 = (
 )
 
 # ---------------------------------------------------------------------------
-# Modern CSS with animations, dark mode and print optimization
+# Complete BASE CSS (Full Dark UI + Crisp Print Layout)
 # ---------------------------------------------------------------------------
 BASE_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
@@ -408,6 +408,19 @@ h1.page-title { font-size: 42px; color: var(--red); margin: 4px 0 2px 0; line-he
 
 .mini-ring-value { font-family: 'Oswald', sans-serif; font-size: 16px; }
 
+.trend-arrow { font-size: 14px; margin-left: 4px; vertical-align: middle; }
+.trend-green { color: var(--green); }
+.trend-red   { color: var(--red); }
+.trend-grey  { color: var(--grey); }
+
+.checkin-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
+.checkin-buttons { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.checkin-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--panel-border);
+  background: transparent; color: #fff; font-size: 13px; cursor: pointer;
+}
+.checkin-btn:hover { background: var(--red); border-color: var(--red); }
+
 .trend-bars {
   display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; height: 64px; margin-top: 10px;
 }
@@ -418,6 +431,14 @@ h1.page-title { font-size: 42px; color: var(--red); margin: 4px 0 2px 0; line-he
 .zone-fill-green { background: var(--green); }
 .zone-fill-grey  { background: var(--grey); }
 .zone-fill-red   { background: var(--red); }
+
+.zone-bar-wrap { margin-bottom: 20px; }
+.zone-bar { display: flex; height: 18px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.05); }
+.zone-seg { height: 100%; transition: width 0.8s ease-out; }
+.zone-seg-low  { background: var(--green); }
+.zone-seg-mod  { background: var(--grey); }
+.zone-seg-high { background: var(--red); }
+.zone-bar-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-top: 8px; }
 
 .power-bars { display: flex; flex-direction: column; gap: 10px; }
 .power-bar-row { display: flex; align-items: center; gap: 10px; }
@@ -458,7 +479,7 @@ h1.page-title { font-size: 42px; color: var(--red); margin: 4px 0 2px 0; line-he
   details p, details .training-tips-text { display: block !important; }
   .energy-ring-inner, .mini-ring-inner { background: #f8fafc !important; color: #0f172a !important; }
   .mini-ring-value, .energy-bank-score { color: #0f172a !important; }
-  .trend-bar-track, .power-bar-track { background: #e2e8f0 !important; }
+  .trend-bar-track, .power-bar-track, .zone-bar { background: #e2e8f0 !important; }
 }
 """
 
@@ -520,6 +541,33 @@ HOME_PAGE = """
       {% if chat_answer %}
       <p style="color:var(--green); margin-top:12px; font-size:14px;">{{ chat_answer }}</p>
       {% endif %}
+      {% if notes %}
+      <div style="margin-top:16px; border-top:1px solid var(--panel-border); padding-top:12px;">
+        <p class="stat-label">Remembered so far</p>
+        {% for n in notes|reverse %}
+        <p style="font-size:12px; color:var(--text-muted); margin:4px 0;"><strong style="color:#fff;">{{ n.date }}:</strong> {{ n.text }}</p>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="section checkin-section no-print">
+      <h2 class="section-title display">Daily Check-In</h2>
+      <p class="subtitle" style="margin-bottom:12px;">How are you feeling today? (1=terrible, 10=amazing)</p>
+      <div class="checkin-row">
+        {% if latest_feeling %}
+        <div class="mini-ring zone-ring-{{ latest_feeling.color }}" style="--pct: {{ latest_feeling.value * 10 }};">
+          <div class="mini-ring-inner">
+            <div class="mini-ring-value">{{ latest_feeling.value }}</div>
+          </div>
+        </div>
+        {% endif %}
+        <form method="post" action="{{ url_for('log_feeling') }}" class="checkin-buttons">
+          {% for n in range(1, 11) %}
+          <button type="submit" name="feeling" value="{{ n }}" class="checkin-btn display">{{ n }}</button>
+          {% endfor %}
+        </form>
+      </div>
     </div>
 
     <div class="section generate-section no-print">
@@ -547,6 +595,13 @@ HOME_PAGE = """
         </div>
       </div>
       <div class="zone-badge zone-{{ data.energy_zone }} display">{{ data.energy_label }}</div>
+
+      {% if data.latest_readiness is not none or data.latest_spo2 is not none %}
+      <div style="margin-top:14px; font-size:13px; color:var(--text-muted);">
+        {% if data.latest_readiness is not none %}Wearable Readiness: <strong style="color:#fff;">{{ data.latest_readiness }}</strong>{% endif %}
+        {% if data.latest_spo2 is not none %} &middot; SpO2: <strong style="color:#fff;">{{ data.latest_spo2 }}%</strong>{% endif %}
+      </div>
+      {% endif %}
 
       {% if data.recent_trend %}
       <div style="margin-top:20px; border-top:1px solid var(--panel-border); padding-top:16px;">
@@ -594,6 +649,11 @@ HOME_PAGE = """
           <div class="stat-value">{{ data.tsb }}</div>
           <div class="zone-badge zone-{{ data.form_zone }} display">{{ data.form_zone }}</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Calories</div>
+          <div class="stat-value">{{ data.avg_daily_calories }}</div>
+          <div class="stat-sub">kcal/day</div>
+        </div>
       </div>
       <details class="prose-card" open>
         <summary><h3>Training Load</h3></summary>
@@ -611,6 +671,7 @@ HOME_PAGE = """
               <div class="mini-ring-value">{{ data.latest_rhr }}</div>
             </div>
           </div>
+          {% if data.trend_arrows.rhr %}<span class="trend-arrow trend-{{ data.trend_arrows.rhr.color }}">{{ data.trend_arrows.rhr.arrow }}</span>{% endif %}
         </div>
         <div class="stat-card">
           <div class="stat-label">HRV</div>
@@ -619,6 +680,7 @@ HOME_PAGE = """
               <div class="mini-ring-value">{{ data.latest_hrv }}</div>
             </div>
           </div>
+          {% if data.trend_arrows.hrv %}<span class="trend-arrow trend-{{ data.trend_arrows.hrv.color }}">{{ data.trend_arrows.hrv.arrow }}</span>{% endif %}
         </div>
         <div class="stat-card">
           <div class="stat-label">Avg Sleep</div>
@@ -627,10 +689,14 @@ HOME_PAGE = """
               <div class="mini-ring-value">{{ data.avg_sleep }}</div>
             </div>
           </div>
+          {% if data.trend_arrows.sleep %}<span class="trend-arrow trend-{{ data.trend_arrows.sleep.color }}">{{ data.trend_arrows.sleep.arrow }}</span>{% endif %}
         </div>
         <div class="stat-card">
           <div class="stat-label">Weight</div>
-          <div class="stat-value" style="font-size:24px; margin-top:12px;">{{ data.latest_weight }}</div>
+          <div class="stat-value" style="font-size:24px; margin-top:12px;">
+            {{ data.latest_weight }}
+            {% if data.trend_arrows.weight %}<span class="trend-arrow trend-{{ data.trend_arrows.weight.color }}">{{ data.trend_arrows.weight.arrow }}</span>{% endif %}
+          </div>
         </div>
       </div>
       <details class="prose-card" open>
@@ -655,6 +721,36 @@ HOME_PAGE = """
       </div>
     </div>
     {% endif %}
+
+    <div class="section season-section">
+      <h2 class="section-title display">Season (Last {{ season_days }} Days)</h2>
+      <div class="stat-row" style="grid-template-columns: 1fr;">
+        <div class="stat-card">
+          <div class="stat-label">Total Training Time</div>
+          <div class="stat-value">{{ data.season_hours }}h</div>
+        </div>
+      </div>
+      <div class="zone-bar-wrap">
+        <div class="zone-bar">
+          <div class="zone-seg zone-seg-low" data-width="{{ data.zone_low_pct }}" style="width:{{ data.zone_low_pct }}%;"></div>
+          <div class="zone-seg zone-seg-mod" data-width="{{ data.zone_mod_pct }}" style="width:{{ data.zone_mod_pct }}%;"></div>
+          <div class="zone-seg zone-seg-high" data-width="{{ data.zone_high_pct }}" style="width:{{ data.zone_high_pct }}%;"></div>
+        </div>
+        <div class="zone-bar-labels">
+          <span>Low {{ data.zone_low_pct }}%</span>
+          <span>Moderate {{ data.zone_mod_pct }}%</span>
+          <span>High {{ data.zone_high_pct }}%</span>
+        </div>
+      </div>
+      <details class="prose-card" open>
+        <summary><h3>Training Distribution</h3></summary>
+        <p>{{ data.season_distribution }}</p>
+      </details>
+      <details class="prose-card" open>
+        <summary><h3>Seasonal Outlook</h3></summary>
+        <p>{{ data.season_outlook }}</p>
+      </details>
+    </div>
 
     <button type="button" class="btn display pdf-btn no-print" id="pdf-btn">Download PDF Report</button>
     {% endif %}
@@ -706,6 +802,7 @@ HOME_PAGE = """
 """
 
 NOTES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coach_notes.json")
+FEELING_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "daily_feeling.json")
 
 def load_notes():
     if not os.path.exists(NOTES_FILE):
@@ -725,6 +822,33 @@ def save_note(text):
     except OSError:
         pass
     return notes
+
+def load_feelings():
+    if not os.path.exists(FEELING_FILE):
+        return []
+    try:
+        with open(FEELING_FILE, "r") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
+
+def save_feeling(value):
+    feelings = [f for f in load_feelings() if f.get("date") != date.today().isoformat()]
+    feelings.append({"date": date.today().isoformat(), "value": value})
+    try:
+        with open(FEELING_FILE, "w") as f:
+            json.dump(feelings[-30:], f)
+    except OSError:
+        pass
+    return feelings
+
+def get_latest_feeling():
+    feelings = load_feelings()
+    if not feelings:
+        return None
+    latest = feelings[-1]["value"]
+    color = "green" if latest >= 8 else ("red" if latest <= 3 else "grey")
+    return {"value": latest, "color": color}
 
 def require_login():
     return session.get("logged_in") is True
@@ -754,7 +878,7 @@ def home():
     return render_template_string(
         HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
         data=session.get("last_data"), error=None, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
-        chat_answer=None
+        notes=load_notes(), chat_answer=None, feelings=load_feelings(), latest_feeling=get_latest_feeling()
     )
 
 def get_intervals_headers():
@@ -834,7 +958,7 @@ def fetch_intervals_data():
     activities_fields = "id,name,type,start_date_local,moving_time,elapsed_time,icu_training_load,icu_weighted_avg_watts,average_watts,average_heartrate,icu_zone_times,calories"
     activities_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities?oldest={season_oldest}&newest={newest}&fields={activities_fields}"
 
-    wellness_fields = "id,restingHR,hrv,sleepSecs,sleepQuality,weight,ctl,atl,readiness,spO2"
+    wellness_fields = "id,restingHR,hrv,sleepSecs,sleepQuality,weight,ctl,atl,readiness,spO2,comments"
     wellness_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness?oldest={season_oldest}&newest={newest}&fields={wellness_fields}"
 
     act_resp = requests.get(activities_url, headers=headers, timeout=30)
@@ -849,6 +973,94 @@ def fetch_intervals_data():
     recent_wellness = [w for w in season_wellness if w.get("id", "") >= recent_oldest]
 
     return recent_activities, season_activities, recent_wellness, season_wellness
+
+def percentile(sorted_values, pct):
+    if not sorted_values:
+        return None
+    if len(sorted_values) == 1:
+        return sorted_values[0]
+    k = (len(sorted_values) - 1) * pct
+    f, c = int(k), min(int(k) + 1, len(sorted_values) - 1)
+    return sorted_values[f] + (sorted_values[c] - sorted_values[f]) * (k - f)
+
+def personal_form_thresholds(season_wellness):
+    tsb_values = sorted(w["ctl"] - w["atl"] for w in season_wellness if w.get("ctl") is not None and w.get("atl") is not None)
+    if len(tsb_values) < 14:
+        return None
+    return percentile(tsb_values, 0.33), percentile(tsb_values, 0.67)
+
+def personal_fatigue_thresholds(season_wellness):
+    ratios = sorted(w["atl"] / w["ctl"] for w in season_wellness if w.get("ctl") not in (None, 0) and w.get("atl") is not None)
+    if len(ratios) < 14:
+        return None
+    return percentile(ratios, 0.33), percentile(ratios, 0.67)
+
+def bucket_zone_seconds(zone_seconds):
+    n = len(zone_seconds)
+    if n == 0:
+        return 0, 0, 0
+    if n in (5, 6):
+        return sum(zone_seconds[0:2]), (zone_seconds[2] if n == 5 else sum(zone_seconds[2:4])), (sum(zone_seconds[3:]) if n == 5 else sum(zone_seconds[4:]))
+    third = max(1, n // 3)
+    return sum(zone_seconds[0:third]), sum(zone_seconds[third:2*third]), sum(zone_seconds[2*third:])
+
+def compute_season_stats(season_activities):
+    total_secs, low_secs, mod_secs, high_secs, total_load = 0, 0, 0, 0, 0
+    for a in season_activities:
+        total_secs += a.get("moving_time") or a.get("elapsed_time") or 0
+        total_load += a.get("icu_training_load") or 0
+        zt = a.get("icu_zone_times")
+        if zt:
+            low, mod, high = bucket_zone_seconds([z.get("secs", 0) for z in zt])
+            low_secs += low
+            mod_secs += mod
+            high_secs += high
+    zone_total = low_secs + mod_secs + high_secs
+    return {
+        "season_hours": round(total_secs / 3600, 1),
+        "season_total_load": round(total_load),
+        "zone_low_pct": round(100 * low_secs / zone_total) if zone_total else 0,
+        "zone_mod_pct": round(100 * mod_secs / zone_total) if zone_total else 0,
+        "zone_high_pct": round(100 * high_secs / zone_total) if zone_total else 0,
+    }
+
+def last_two_values(wellness, field):
+    vals = [w[field] for w in sorted(wellness, key=lambda x: x.get("id", "")) if w.get(field) is not None]
+    return (vals[-1], vals[-2]) if len(vals) >= 2 else (None, None)
+
+def trend_arrow(current, previous, higher_is_better):
+    if current is None or previous is None or current == previous:
+        return None
+    up = current > previous
+    arrow = "▲" if up else "▼"
+    color = "grey" if higher_is_better is None else ("green" if (up == higher_is_better) else "red")
+    return {"arrow": arrow, "color": color}
+
+def compute_trend_arrows(wellness):
+    rhr_latest, rhr_prev = last_two_values(wellness, "restingHR")
+    hrv_latest, hrv_prev = last_two_values(wellness, "hrv")
+    sleep_latest, sleep_prev = last_two_values(wellness, "sleepSecs")
+    weight_latest, weight_prev = last_two_values(wellness, "weight")
+    return {
+        "rhr": trend_arrow(rhr_latest, rhr_prev, higher_is_better=False),
+        "hrv": trend_arrow(hrv_latest, hrv_prev, higher_is_better=True),
+        "sleep": trend_arrow(sleep_latest, sleep_prev, higher_is_better=True),
+        "weight": trend_arrow(weight_latest, weight_prev, higher_is_better=None),
+    }
+
+def compute_health_rings(latest_rhr, latest_hrv, avg_sleep_hours, trend_arrows):
+    def clamp(v): return max(0, min(100, v))
+    rings = {}
+    if isinstance(latest_rhr, (int, float)):
+        pct = clamp(round(100 - (latest_rhr - 40) / 40 * 100))
+        rings["rhr"] = {"pct": pct, "color": trend_arrows.get("rhr", {}).get("color", "grey")}
+    if isinstance(latest_hrv, (int, float)):
+        pct = clamp(round((latest_hrv - 20) / 100 * 100))
+        rings["hrv"] = {"pct": pct, "color": trend_arrows.get("hrv", {}).get("color", "grey")}
+    if isinstance(avg_sleep_hours, (int, float)):
+        pct = clamp(round(avg_sleep_hours / 9 * 100))
+        rings["sleep"] = {"pct": pct, "color": trend_arrows.get("sleep", {}).get("color", "grey")}
+    return rings
 
 def compute_recent_trend(wellness, n=5):
     daily = []
@@ -903,20 +1115,22 @@ def ask_claude(data_text, metrics):
         f"You are an expert cycling coach. Today's date is {today.strftime('%A, %B %d, %Y')}. "
         f"{ATHLETE_CONTEXT} "
         f"Athlete metrics: Fitness (CTL)={metrics['ctl']}, Fatigue (ATL)={metrics['atl']}, Form (TSB)={metrics['tsb']}. "
-        f"IMPORTANT: Do NOT use LaTeX math syntax or dollar signs (e.g. NEVER write $4\\times4$ or $340-350W$). Use plain standard text like '4x4' or '340-350W'.\n\n"
-        f"Respond ONLY with valid JSON (no markdown fences) with exactly these keys:\n"
+        f"IMPORTANT: Strictly DO NOT use LaTeX formatting or math symbols like $4\\times4$ or $340-350W$. Use plain text like '4x4' or '340-350W'.\n\n"
+        f"Respond ONLY with valid JSON (no markdown fences) with exactly these 6 keys:\n"
         f'- "training_load": 2-3 sentences on recent training load trend\n'
+        f'- "season_distribution": 2-3 sentences on training distribution (polarized/pyramidal/threshold) based on zone percentages\n'
+        f'- "season_outlook": 3-4 sentences on seasonal progression and upcoming races\n'
         f'- "fatigue_signals": 2-3 sentences on sleep, HRV, RHR and sleep quality (Q rating)\n'
-        f'- "recommendation": 3-5 sentences of general training direction for the next 3-5 days\n'
+        f'- "recommendation": 3-5 sentences of general training guidance for the next 3-5 days\n'
         f'- "training_tips": ONE specific 60-min Zwift indoor trainer workout for EACH of these 3 exact upcoming dates: {day1}, {day2}, {day3}. '
-        f"Format as 3 distinct plain text blocks separated by line breaks. Each block must state the exact Date & Workout Title, Warm-up, Main set, Cooldown with durations and target watts, and a final line starting with 'Why: ' explaining why it suits that date.\n\n"
+        f"Format as 3 distinct plain text blocks separated by double line breaks. Each block must state the exact Date & Title, Warm-up, Main set, Cooldown with target watts, and a final line starting with 'Why: ' explaining why it suits that date.\n\n"
         f"DATA:\n{data_text}"
     )
 
     resp = requests.post(
         "https://api.anthropic.com/v1/messages",
         headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-        json={"model": "claude-sonnet-4-6", "max_tokens": 1600, "messages": [{"role": "user", "content": prompt}]},
+        json={"model": "claude-sonnet-4-6", "max_tokens": 1800, "messages": [{"role": "user", "content": prompt}]},
         timeout=60,
     )
     resp.raise_for_status()
@@ -925,8 +1139,36 @@ def ask_claude(data_text, metrics):
         text = text.strip("`").replace("json\n", "", 1)
     return json.loads(text)
 
-def build_data_text(recent_activities, wellness, notes, best_watts):
-    lines = ["RECENT WELLNESS & SLEEP QUALITY:"]
+def ask_claude_chat(question, notes, current_data):
+    today = date.today()
+    notes_text = "\n".join(f"- {n.get('date')}: {n.get('text')}" for n in notes) or "(none)"
+    snapshot_text = f"CTL={current_data.get('ctl')}, ATL={current_data.get('atl')}, TSB={current_data.get('tsb')}" if current_data else "No snapshot"
+
+    prompt = (
+        f"You are the athlete's cycling coach chat assistant. Today is {today.strftime('%A, %B %d, %Y')}. {ATHLETE_CONTEXT}\n"
+        f"Previous Notes:\n{notes_text}\n"
+        f"Recent Snapshot: {snapshot_text}\n"
+        f"Athlete asked: \"{question}\"\n\n"
+        f"Respond ONLY with valid JSON with keys:\n"
+        f'- "answer": 2-4 sentences helpful response in plain text\n'
+        f'- "remember": A short 3rd-person factual summary sentence if there is an injury, goal, or durable fact to remember, otherwise null.'
+    )
+
+    resp = requests.post(
+        "[https://api.anthropic.com/v1/messages](https://api.anthropic.com/v1/messages)",
+        headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+        json={"model": "claude-sonnet-4-6", "max_tokens": 400, "messages": [{"role": "user", "content": prompt}]},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    text = "".join(b.get("text", "") for b in resp.json().get("content", [])).strip()
+    if text.startswith("```"):
+        text = text.strip("`").replace("json\n", "", 1)
+    parsed = json.loads(text)
+    return parsed.get("answer", ""), parsed.get("remember")
+
+def build_data_text(recent_activities, wellness, season_stats, notes, feelings, best_watts):
+    lines = ["WELLNESS & SLEEP QUALITY:"]
     for w in sorted(wellness, key=lambda x: x.get("id", "")):
         sq = w.get("sleepQuality", "N/A")
         sleep = round(w["sleepSecs"] / 3600, 1) if w.get("sleepSecs") else "n/a"
@@ -934,6 +1176,8 @@ def build_data_text(recent_activities, wellness, notes, best_watts):
             f"- {w.get('id')}: RHR {w.get('restingHR', 'n/a')} | HRV {w.get('hrv', 'n/a')} | "
             f"Sleep {sleep}h (Quality: {sq}) | CTL {w.get('ctl', 'n/a')} | ATL {w.get('atl', 'n/a')}"
         )
+
+    lines.append(f"\nSEASON 90-DAY STATS: Total Hours {season_stats['season_hours']}h, Low {season_stats['zone_low_pct']}%, Mod {season_stats['zone_mod_pct']}%, High {season_stats['zone_high_pct']}%")
 
     if best_watts:
         lines.append("\nBEST POWER EFFORTS (Last 42 days ceiling):")
@@ -944,6 +1188,11 @@ def build_data_text(recent_activities, wellness, notes, best_watts):
         lines.append("\nCOACH NOTES FROM ATHLETE:")
         for n in notes:
             lines.append(f"- {n.get('date')}: {n.get('text')}")
+
+    if feelings:
+        lines.append("\nSELF-REPORTED DAILY FEELINGS (1-10):")
+        for f in feelings:
+            lines.append(f"- {f.get('date')}: {f.get('value')}/10")
 
     return "\n".join(lines)
 
@@ -959,8 +1208,14 @@ def analyze():
         atl = latest_w.get("atl", 0) or 0
         tsb = round(ctl - atl, 1)
 
+        form_thresh = personal_form_thresholds(season_wellness)
+        fatigue_thresh = personal_fatigue_thresholds(season_wellness)
+
         weight_entries = [w for w in wellness if w.get("weight")]
         latest_weight = f"{round(weight_entries[-1]['weight'], 1)}kg" if weight_entries else "n/a"
+
+        readiness_entries = [w for w in wellness if w.get("readiness") is not None]
+        spo2_entries = [w for w in wellness if w.get("spO2") is not None]
 
         sleep_vals = [w["sleepSecs"]/3600 for w in wellness if w.get("sleepSecs")]
         avg_sleep_hours = round(statistics.mean(sleep_vals), 1) if sleep_vals else None
@@ -970,13 +1225,20 @@ def analyze():
             "atl": round(atl, 1),
             "tsb": tsb,
             "fitness_zone": "green" if ctl > 80 else "grey",
-            "fatigue_zone": "red" if atl / (ctl or 1) > 1.15 else "green",
-            "form_zone": "green" if tsb >= 0 else "grey",
+            "fatigue_zone": "red" if (atl / ctl > fatigue_thresh[1] if fatigue_thresh else atl / (ctl or 1) > 1.15) else "green",
+            "form_zone": "green" if (tsb >= form_thresh[1] if form_thresh else tsb >= 0) else "grey",
             "latest_rhr": latest_w.get("restingHR", "n/a"),
             "latest_hrv": latest_w.get("hrv", "n/a"),
             "avg_sleep": f"{avg_sleep_hours}h" if avg_sleep_hours else "n/a",
             "latest_weight": latest_weight,
+            "latest_readiness": readiness_entries[-1]["readiness"] if readiness_entries else None,
+            "latest_spo2": spo2_entries[-1]["spO2"] if spo2_entries else None,
         }
+
+        season_stats = compute_season_stats(season_activities)
+        trend_arrows = compute_trend_arrows(wellness)
+        health_rings = compute_health_rings(metrics["latest_rhr"], metrics["latest_hrv"], avg_sleep_hours, trend_arrows)
+        recent_calories = sum(a.get("calories") or 0 for a in recent_activities)
 
         energy_bank = compute_energy_bank(
             metrics["form_zone"], metrics["fatigue_zone"], avg_sleep_hours, latest_w.get("sleepQuality")
@@ -985,23 +1247,22 @@ def analyze():
         recent_trend = compute_recent_trend(wellness, n=5)
         best_watts = get_best_watts()
         notes = load_notes()
+        feelings = load_feelings()
 
-        data_text = build_data_text(recent_activities, wellness, notes, best_watts)
+        data_text = build_data_text(recent_activities, wellness, season_stats, notes, feelings, best_watts)
         analysis = ask_claude(data_text, metrics)
 
         data = {
-            **metrics, **analysis, **energy_bank,
+            **metrics, **season_stats, **analysis, **energy_bank,
+            "avg_daily_calories": round(recent_calories / DAYS_BACK) if DAYS_BACK else 0,
             "recent_trend": recent_trend,
-            "health_rings": {
-                "rhr": {"pct": 70, "color": "green"},
-                "hrv": {"pct": 80, "color": "green"},
-                "sleep": {"pct": 85, "color": "green"}
-            },
+            "trend_arrows": trend_arrows,
+            "health_rings": health_rings,
             "best_watts": best_watts,
         }
         session["last_data"] = data
     except Exception as e:
-        return render_template_string(HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK, data=None, error=f"Analysis failed: {str(e)}", css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64)
+        return render_template_string(HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK, data=None, error=f"Analysis failed: {str(e)}", css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64, notes=load_notes(), chat_answer=None, feelings=load_feelings(), latest_feeling=get_latest_feeling())
 
     return redirect(url_for("home"))
 
@@ -1012,13 +1273,34 @@ def ask():
     question = (request.form.get("question") or "").strip()
     chat_answer = None
     if question:
-        save_note(question)
-        chat_answer = "Noted ✅ — I'll factor this into your next snapshot."
+        try:
+            notes = load_notes()
+            reply, remember = ask_claude_chat(question, notes, session.get("last_data"))
+            if remember:
+                save_note(remember)
+            else:
+                save_note(question)
+            chat_answer = "Noted ✅ — I'll factor this into your next snapshot."
+        except Exception as e:
+            chat_answer = f"Error: {e}"
+
     return render_template_string(
         HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
         data=session.get("last_data"), error=None, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
-        chat_answer=chat_answer
+        notes=load_notes(), chat_answer=chat_answer, feelings=load_feelings(), latest_feeling=get_latest_feeling()
     )
+
+@app.route("/log-feeling", methods=["POST"])
+def log_feeling():
+    if not require_login():
+        return redirect(url_for("login"))
+    try:
+        val = int(request.form.get("feeling", 0))
+        if 1 <= val <= 10:
+            save_feeling(val)
+    except ValueError:
+        pass
+    return redirect(url_for("home"))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
