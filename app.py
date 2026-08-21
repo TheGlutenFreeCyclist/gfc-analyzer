@@ -204,14 +204,14 @@ FAVICON_B64 = (
 )
 
 # ---------------------------------------------------------------------------
-# Modern, High-Contrast Responsive CSS (Screen + Print Perfect)
+# Modern CSS with animations, dark mode and print optimization
 # ---------------------------------------------------------------------------
 BASE_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oswald:wght@500;600;700&display=swap');
 
 :root {
-  --bg-dark: #0f1117;
-  --panel-dark: #181b24;
+  --bg-dark: #0a0b0e;
+  --panel-dark: #14171f;
   --panel-border: rgba(255, 255, 255, 0.08);
   --text-main: #f3f4f6;
   --text-muted: #9ca3af;
@@ -219,7 +219,7 @@ BASE_CSS = """
   --red-dim: #991b1b;
   --green: #10b981;
   --grey: #6b7280;
-  --card-radius: 14px;
+  --card-radius: 12px;
 }
 
 * { box-sizing: border-box; }
@@ -250,23 +250,9 @@ a { color: var(--text-main); }
   padding: 24px;
 }
 
-.logo-img {
-  width: 180px;
-  height: auto;
-  margin: 0 auto 18px auto;
-  display: block;
-}
-
-.header-center {
-  text-align: center;
-}
-
-.home-logo {
-  width: 200px;
-  height: auto;
-  display: block;
-  margin: 4px auto 16px auto;
-}
+.logo-img { width: 180px; height: auto; margin: 0 auto 18px auto; display: block; }
+.header-center { text-align: center; }
+.home-logo { width: 200px; height: auto; display: block; margin: 4px auto 16px auto; }
 
 .login-box {
   background: var(--panel-dark);
@@ -305,44 +291,12 @@ a { color: var(--text-main); }
 
 .login-box button:hover, .btn:hover { background: var(--red-dim); }
 
-.wrap {
-  max-width: 820px;
-  margin: 0 auto;
-  padding: 32px 20px 64px 20px;
-}
-
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 12px;
-}
-
-.eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.15em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.logout-link {
-  font-size: 13px;
-  color: var(--text-muted);
-  text-decoration: none;
-}
-
-h1.page-title {
-  font-size: 42px;
-  color: var(--red);
-  margin: 4px 0 2px 0;
-  line-height: 1.1;
-}
-
-.subtitle {
-  color: var(--text-muted);
-  margin-bottom: 24px;
-  font-size: 13px;
-}
+.wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px 20px; }
+.top-bar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.15em; color: var(--text-muted); text-transform: uppercase; }
+.logout-link { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+h1.page-title { font-size: 42px; color: var(--red); margin: 4px 0 2px 0; line-height: 1.1; }
+.subtitle { color: var(--text-muted); margin-bottom: 24px; font-size: 13px; }
 
 .section {
   background: var(--panel-dark);
@@ -352,15 +306,11 @@ h1.page-title {
   margin-bottom: 24px;
 }
 
-.section-title {
-  color: var(--red);
-  font-size: 22px;
-  margin: 0 0 16px 0;
-}
+.section-title { color: var(--red); font-size: 22px; margin: 0 0 16px 0; }
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 14px;
   margin-bottom: 20px;
 }
@@ -373,25 +323,9 @@ h1.page-title {
   text-align: center;
 }
 
-.stat-label {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.stat-value {
-  font-family: 'Oswald', sans-serif;
-  font-size: 32px;
-  line-height: 1;
-}
-
-.stat-sub {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 4px;
-}
+.stat-label { font-size: 11px; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+.stat-value { font-family: 'Oswald', sans-serif; font-size: 32px; line-height: 1; }
+.stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
 
 .zone-badge {
   display: inline-block;
@@ -417,11 +351,7 @@ h1.page-title {
 }
 
 .prose-card summary, .recommendation-box summary, .training-tips-box summary {
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between;
 }
 
 .prose-card summary::-webkit-details-marker,
@@ -431,28 +361,15 @@ h1.page-title {
 .prose-card summary::after,
 .recommendation-box summary::after,
 .training-tips-box summary::after {
-  content: '\25B8';
-  font-size: 16px;
-  color: var(--text-muted);
-  transition: transform 0.2s ease;
+  content: '\25B8'; font-size: 16px; color: var(--text-muted); transition: transform 0.2s ease;
 }
 
 .prose-card[open] summary::after,
 .recommendation-box[open] summary::after,
 .training-tips-box[open] summary::after { transform: rotate(90deg); }
 
-.prose-card h3, .recommendation-box h3, .training-tips-box h3 {
-  color: var(--red);
-  font-size: 18px;
-  margin: 0;
-}
-
-.prose-card p, .recommendation-box p, .training-tips-text {
-  margin: 12px 0 0 0;
-  line-height: 1.6;
-  font-size: 14px;
-  white-space: pre-line;
-}
+.prose-card h3, .recommendation-box h3, .training-tips-box h3 { color: var(--red); font-size: 18px; margin: 0; }
+.prose-card p, .recommendation-box p, .training-tips-text { margin: 12px 0 0 0; line-height: 1.6; font-size: 14px; white-space: pre-line; }
 
 .energy-bank-card {
   background: var(--panel-dark);
@@ -464,11 +381,7 @@ h1.page-title {
 }
 
 .energy-ring {
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  margin: 0 auto 16px auto;
-  padding: 8px;
+  width: 140px; height: 140px; border-radius: 50%; margin: 0 auto 16px auto; padding: 8px;
   background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(255,255,255,0.05) 0);
 }
 
@@ -477,69 +390,31 @@ h1.page-title {
 .zone-ring-red   { --ring-color: var(--red); }
 
 .energy-ring-inner {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: var(--panel-dark);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  width: 100%; height: 100%; border-radius: 50%; background: var(--panel-dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 
 .energy-bank-score { font-size: 38px; line-height: 1; }
 
 .mini-ring {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  margin: 6px auto 0 auto;
-  padding: 4px;
+  width: 60px; height: 60px; border-radius: 50%; margin: 6px auto 0 auto; padding: 4px;
   background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(255,255,255,0.08) 0);
 }
 
 .mini-ring-inner {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: var(--panel-dark);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%; height: 100%; border-radius: 50%; background: var(--panel-dark);
+  display: flex; align-items: center; justify-content: center;
 }
 
 .mini-ring-value { font-family: 'Oswald', sans-serif; font-size: 16px; }
 
 .trend-bars {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 8px;
-  height: 64px;
-  margin-top: 10px;
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; height: 64px; margin-top: 10px;
 }
 
-.trend-bar-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  height: 100%;
-  justify-content: flex-end;
-}
-
-.trend-bar-track {
-  width: 100%;
-  max-width: 24px;
-  height: 44px;
-  display: flex;
-  align-items: flex-end;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.05);
-  overflow: hidden;
-}
-
-.trend-bar-fill { width: 100%; border-radius: 999px; }
+.trend-bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
+.trend-bar-track { width: 100%; max-width: 24px; height: 44px; display: flex; align-items: flex-end; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; }
+.trend-bar-fill { width: 100%; border-radius: 999px; transition: height 0.8s ease-out; }
 .zone-fill-green { background: var(--green); }
 .zone-fill-grey  { background: var(--grey); }
 .zone-fill-red   { background: var(--red); }
@@ -548,60 +423,42 @@ h1.page-title {
 .power-bar-row { display: flex; align-items: center; gap: 10px; }
 .power-bar-label { width: 44px; font-size: 12px; color: var(--text-muted); text-align: right; }
 .power-bar-track { flex: 1; height: 14px; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; }
-.power-bar-fill { height: 100%; background: var(--red); }
+.power-bar-fill { height: 100%; background: var(--red); transition: width 0.8s ease-out; }
 .power-bar-value { width: 56px; font-size: 13px; font-family: 'Oswald', sans-serif; }
 
-/* ---------------------------------------------------------------------------
-   HIGH QUALITY PDF PRINT STYLES
-   --------------------------------------------------------------------------- */
+/* Progress Bar Loader */
+.loading-track {
+  display: none; width: 100%; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.1);
+  margin-top: 14px; overflow: hidden; position: relative;
+}
+.loading-fill {
+  position: absolute; top: 0; left: 0; height: 100%; width: 35%; background: var(--red);
+  animation: loadingSlide 1.2s ease-in-out infinite;
+}
+@keyframes loadingSlide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(380%); }
+}
+.loading-label { display: none; text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 8px; }
+
+/* Print Optimization */
 @media print {
-  .no-print, .top-bar, .chat-section, .checkin-section, .generate-section, .pdf-btn {
-    display: none !important;
-  }
-  
-  body {
-    background: #ffffff !important;
-    color: #111827 !important;
-    font-size: 12pt;
-  }
-
+  .no-print, .top-bar, .chat-section, .checkin-section, .generate-section, .pdf-btn { display: none !important; }
+  body { background: #ffffff !important; color: #111827 !important; font-size: 11pt; }
   .wrap { max-width: 100% !important; padding: 0 !important; }
-
   .section, .energy-bank-card, .recommendation-box, .training-tips-box, .prose-card, .stat-card {
-    background: #f8fafc !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 8px !important;
-    box-shadow: none !important;
-    color: #0f172a !important;
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    margin-bottom: 16px !important;
+    background: #f8fafc !important; border: 1px solid #cbd5e1 !important; border-radius: 8px !important;
+    box-shadow: none !important; color: #0f172a !important; break-inside: avoid !important; margin-bottom: 14px !important;
   }
-
-  .section-title, .page-title, .recommendation-box h3, .training-tips-box h3, .prose-card h3 {
-    color: #dc2626 !important;
-  }
-
+  .section-title, .page-title, .recommendation-box h3, .training-tips-box h3, .prose-card h3 { color: #dc2626 !important; }
   .subtitle, .stat-label, .stat-sub { color: #475569 !important; }
-
-  /* Force details open for print */
   details { display: block !important; }
   details summary { display: block !important; outline: none; }
   details summary::after { display: none !important; }
   details p, details .training-tips-text { display: block !important; }
-
-  .energy-ring-inner, .mini-ring-inner {
-    background: #f8fafc !important;
-    color: #0f172a !important;
-  }
-
+  .energy-ring-inner, .mini-ring-inner { background: #f8fafc !important; color: #0f172a !important; }
   .mini-ring-value, .energy-bank-score { color: #0f172a !important; }
-
-  .trend-bar-track, .power-bar-track {
-    background: #e2e8f0 !important;
-  }
-
-  .zone-badge { border-width: 1px !important; }
+  .trend-bar-track, .power-bar-track { background: #e2e8f0 !important; }
 }
 """
 
@@ -624,7 +481,7 @@ LOGIN_PAGE = """
         <input type="password" name="password" placeholder="Password" autofocus required>
         <button type="submit" class="display">Enter</button>
       </form>
-      {% if error %}<div class="error-msg" style="color:var(--red); margin-top:12px;">{{ error }}</div>{% endif %}
+      {% if error %}<div style="color:var(--red); margin-top:12px; font-size:14px;">{{ error }}</div>{% endif %}
     </div>
   </div>
 </body>
@@ -661,13 +518,17 @@ HOME_PAGE = """
         <button type="submit" class="btn display" id="chat-btn" style="margin-top:10px;">Send Note</button>
       </form>
       {% if chat_answer %}
-      <p style="color:var(--green); margin-top:12px;">{{ chat_answer }}</p>
+      <p style="color:var(--green); margin-top:12px; font-size:14px;">{{ chat_answer }}</p>
       {% endif %}
     </div>
 
     <div class="section generate-section no-print">
       <form method="post" action="{{ url_for('analyze') }}" id="snapshot-form">
         <button type="submit" class="btn display" id="snapshot-btn">Generate Snapshot</button>
+        <div class="loading-track" id="loading-track">
+          <div class="loading-fill"></div>
+        </div>
+        <p class="loading-label" id="loading-label"></p>
       </form>
     </div>
 
@@ -678,6 +539,7 @@ HOME_PAGE = """
     {% if data %}
     <div class="energy-bank-card">
       <div class="eyebrow display" style="margin-bottom:8px;">Energy Bank</div>
+      <p class="subtitle" style="margin-bottom:16px;">Readiness score combining Form, Fatigue, Sleep & Sleep Quality</p>
       <div class="energy-ring zone-ring-{{ data.energy_zone }}" style="--pct: {{ data.energy_score }};">
         <div class="energy-ring-inner">
           <div class="energy-bank-score display">{{ data.energy_score }}</div>
@@ -688,14 +550,15 @@ HOME_PAGE = """
 
       {% if data.recent_trend %}
       <div style="margin-top:20px; border-top:1px solid var(--panel-border); padding-top:16px;">
-        <p class="stat-label">Last 5 Days &middot; Form vs. Norm</p>
+        <p class="stat-label">Last 5 Days &middot; Form (TSB) Trend</p>
         <div class="trend-bars">
           {% for d in data.recent_trend %}
           <div class="trend-bar-col">
             <div class="trend-bar-track">
               <div class="trend-bar-fill zone-fill-{{ d.zone }}" data-trend-height="{{ [((d.tsb + 30) / 60 * 100), 10]|max }}" style="height: {{ [((d.tsb + 30) / 60 * 100), 10]|max }}%;"></div>
             </div>
-            <div style="font-size:10px; margin-top:4px;">{{ d.weekday }}</div>
+            <div style="font-size:11px; font-weight:600; margin-top:4px;">{{ d.weekday }}</div>
+            <div style="font-size:9px; color:var(--text-muted);">{{ d.tsb }}</div>
           </div>
           {% endfor %}
         </div>
@@ -765,6 +628,10 @@ HOME_PAGE = """
             </div>
           </div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">Weight</div>
+          <div class="stat-value" style="font-size:24px; margin-top:12px;">{{ data.latest_weight }}</div>
+        </div>
       </div>
       <details class="prose-card" open>
         <summary><h3>Fatigue Signals</h3></summary>
@@ -795,21 +662,41 @@ HOME_PAGE = """
 
   <script>
     (function () {
+      // PDF print button behavior
       var pdfBtn = document.getElementById('pdf-btn');
       if (pdfBtn) {
         pdfBtn.addEventListener('click', function () {
-          // 1. Force expand all details tags
-          document.querySelectorAll('details').forEach(function (el) {
-            el.open = true;
-          });
-          // 2. Set explicit width/height inline for print engine
-          document.querySelectorAll('[data-width]').forEach(function (el) {
-            el.style.width = el.getAttribute('data-width') + '%';
-          });
-          document.querySelectorAll('[data-trend-height]').forEach(function (el) {
-            el.style.height = el.getAttribute('data-trend-height') + '%';
-          });
+          document.querySelectorAll('details').forEach(function (el) { el.open = true; });
+          document.querySelectorAll('[data-width]').forEach(function (el) { el.style.width = el.getAttribute('data-width') + '%'; });
+          document.querySelectorAll('[data-trend-height]').forEach(function (el) { el.style.height = el.getAttribute('data-trend-height') + '%'; });
           window.print();
+        });
+      }
+
+      // Generate Snapshot Loading feedback
+      var form = document.getElementById('snapshot-form');
+      if (form) {
+        form.addEventListener('submit', function () {
+          var btn = document.getElementById('snapshot-btn');
+          var track = document.getElementById('loading-track');
+          var label = document.getElementById('loading-label');
+          var messages = [
+            'Pulling your Intervals.icu data...',
+            'Crunching fitness, fatigue and form...',
+            'Evaluating sleep quality and health markers...',
+            'Consulting your AI coach...',
+            'Almost there...'
+          ];
+          btn.disabled = true;
+          btn.textContent = 'Analyzing...';
+          track.style.display = 'block';
+          label.style.display = 'block';
+          var i = 0;
+          label.textContent = messages[0];
+          setInterval(function () {
+            i = (i + 1) % messages.length;
+            label.textContent = messages[i];
+          }, 3000);
         });
       }
     })();
@@ -875,6 +762,69 @@ def get_intervals_headers():
     encoded = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
     return {"Authorization": f"Basic {encoded}"}
 
+def fetch_power_curve_payload():
+    headers = get_intervals_headers()
+    url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/power-curves.json?type=Ride&curves=42d"
+    resp = requests.get(url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+def extract_power_curve_points(payload):
+    array_results = []
+    point_list_results = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            secs = node.get("secs")
+            watts = node.get("watts") or node.get("power")
+            if isinstance(secs, list) and isinstance(watts, list) and len(secs) == len(watts) and len(secs) > 0:
+                array_results.append([{"secs": s, "watts": w} for s, w in zip(secs, watts) if w])
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            if node and isinstance(node[0], dict) and "secs" in node[0]:
+                point_list_results.append(node)
+            for item in node:
+                walk(item)
+
+    walk(payload)
+    if array_results:
+        return max(array_results, key=len)
+    return point_list_results[0] if point_list_results else None
+
+def best_watts_for_durations(points, target_secs_list):
+    if not points:
+        return []
+    sorted_points = sorted(points, key=lambda p: p.get("secs", 0))
+    results = []
+    labels = {5: "5s", 15: "15s", 60: "1m", 300: "5m", 1200: "20m", 3600: "1h"}
+    for target in target_secs_list:
+        best = None
+        for p in sorted_points:
+            if p.get("secs", 0) <= target:
+                best = p
+            else:
+                break
+        if best is None and sorted_points:
+            best = sorted_points[0]
+        watts = best.get("watts") or best.get("power") if best else None
+        if watts:
+            results.append({"label": labels.get(target, f"{target}s"), "watts": round(watts)})
+
+    if results:
+        max_watts = max(r["watts"] for r in results)
+        for r in results:
+            r["pct"] = round(100 * r["watts"] / max_watts) if max_watts else 0
+    return results
+
+def get_best_watts():
+    try:
+        payload = fetch_power_curve_payload()
+        points = extract_power_curve_points(payload)
+        return best_watts_for_durations(points, [5, 15, 60, 300, 1200, 3600])
+    except Exception:
+        return []
+
 def fetch_intervals_data():
     season_oldest = (date.today() - timedelta(days=SEASON_DAYS_BACK)).isoformat()
     recent_oldest = (date.today() - timedelta(days=DAYS_BACK)).isoformat()
@@ -884,7 +834,6 @@ def fetch_intervals_data():
     activities_fields = "id,name,type,start_date_local,moving_time,elapsed_time,icu_training_load,icu_weighted_avg_watts,average_watts,average_heartrate,icu_zone_times,calories"
     activities_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/activities?oldest={season_oldest}&newest={newest}&fields={activities_fields}"
 
-    # Added sleepQuality (Q) field explicitly
     wellness_fields = "id,restingHR,hrv,sleepSecs,sleepQuality,weight,ctl,atl,readiness,spO2"
     wellness_url = f"https://intervals.icu/api/v1/athlete/{ICU_ATHLETE_ID}/wellness?oldest={season_oldest}&newest={newest}&fields={wellness_fields}"
 
@@ -901,7 +850,22 @@ def fetch_intervals_data():
 
     return recent_activities, season_activities, recent_wellness, season_wellness
 
-def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours, latest_sleep_quality=None):
+def compute_recent_trend(wellness, n=5):
+    daily = []
+    for w in sorted(wellness, key=lambda x: x.get("id", "")):
+        ctl, atl = w.get("ctl"), w.get("atl")
+        if ctl is None or atl is None:
+            continue
+        tsb = round(ctl - atl, 1)
+        try:
+            weekday = date.fromisoformat(w["id"]).strftime("%a").upper()
+        except (ValueError, KeyError):
+            weekday = w.get("id", "")[-2:]
+        zone = "green" if tsb >= 0 else ("red" if tsb <= -15 else "grey")
+        daily.append({"date": w.get("id", ""), "weekday": weekday, "tsb": tsb, "zone": zone})
+    return daily[-n:]
+
+def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours, sleep_quality=None):
     score = 50
     score += {"green": 25, "grey": 0, "red": -25}.get(form_zone, 0)
     score += {"green": 15, "grey": 0, "red": -15}.get(fatigue_zone, 0)
@@ -912,12 +876,11 @@ def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours, latest_sleep_q
         elif avg_sleep_hours < 6.5:
             score -= 10
 
-    # Adjust score based on sleep quality Q1-Q5 if present
-    if latest_sleep_quality:
-        sq_str = str(latest_sleep_quality).upper()
-        if "Q1" in sq_str or "GREAT" in sq_str:
+    if sleep_quality:
+        sq = str(sleep_quality).upper()
+        if any(q in sq for q in ["Q1", "GREAT", "EXCELLENT", "GOOD"]):
             score += 10
-        elif "Q4" in sq_str or "Q5" in sq_str or "POOR" in sq_str:
+        elif any(q in sq for q in ["Q4", "Q5", "POOR", "BAD"]):
             score -= 10
 
     score = max(0, min(100, score))
@@ -926,14 +889,9 @@ def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours, latest_sleep_q
     return {"energy_score": score, "energy_label": label, "energy_zone": zone}
 
 def compute_next_key_days():
-    """Calculate the next 3 key workout days starting TOMORROW, rolling forward."""
+    """Calculate the next 3 consecutive days starting strictly TOMORROW."""
     today = date.today()
-    upcoming = []
-    d = today + timedelta(days=1)
-    while len(upcoming) < 3:
-        if d.weekday() in (0, 2, 4):  # Mon, Wed, Fri
-            upcoming.append(d)
-        d += timedelta(days=1)
+    upcoming = [today + timedelta(days=i) for i in range(1, 4)]
     return [(d.strftime("%A"), d.strftime("%B %d")) for d in upcoming]
 
 def ask_claude(data_text, metrics):
@@ -942,23 +900,23 @@ def ask_claude(data_text, metrics):
     day1, day2, day3 = [f"{day}, {dt}" for day, dt in key_days]
 
     prompt = (
-        f"You are an expert cycling coach. Today is {today.strftime('%A, %B %d, %Y')}. "
+        f"You are an expert cycling coach. Today's date is {today.strftime('%A, %B %d, %Y')}. "
         f"{ATHLETE_CONTEXT} "
         f"Athlete metrics: Fitness (CTL)={metrics['ctl']}, Fatigue (ATL)={metrics['atl']}, Form (TSB)={metrics['tsb']}. "
         f"IMPORTANT: Do NOT use LaTeX math syntax or dollar signs (e.g. NEVER write $4\\times4$ or $340-350W$). Use plain standard text like '4x4' or '340-350W'.\n\n"
-        f"Respond ONLY with valid JSON with these keys:\n"
+        f"Respond ONLY with valid JSON (no markdown fences) with exactly these keys:\n"
         f'- "training_load": 2-3 sentences on recent training load trend\n'
         f'- "fatigue_signals": 2-3 sentences on sleep, HRV, RHR and sleep quality (Q rating)\n'
         f'- "recommendation": 3-5 sentences of general training direction for the next 3-5 days\n'
-        f'- "training_tips": ONE 60-min Zwift indoor workout for EACH of these 3 upcoming dates: {day1}, {day2}, {day3}. '
-        f"Format as 3 plain text blocks separated by line breaks. Each block should start with the Date & Title, Warm-up, Main set, Cooldown, and 'Why: '.\n\n"
+        f'- "training_tips": ONE specific 60-min Zwift indoor trainer workout for EACH of these 3 exact upcoming dates: {day1}, {day2}, {day3}. '
+        f"Format as 3 distinct plain text blocks separated by line breaks. Each block must state the exact Date & Workout Title, Warm-up, Main set, Cooldown with durations and target watts, and a final line starting with 'Why: ' explaining why it suits that date.\n\n"
         f"DATA:\n{data_text}"
     )
 
     resp = requests.post(
         "https://api.anthropic.com/v1/messages",
         headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-        json={"model": "claude-sonnet-4-6", "max_tokens": 1500, "messages": [{"role": "user", "content": prompt}]},
+        json={"model": "claude-sonnet-4-6", "max_tokens": 1600, "messages": [{"role": "user", "content": prompt}]},
         timeout=60,
     )
     resp.raise_for_status()
@@ -966,6 +924,28 @@ def ask_claude(data_text, metrics):
     if text.startswith("```"):
         text = text.strip("`").replace("json\n", "", 1)
     return json.loads(text)
+
+def build_data_text(recent_activities, wellness, notes, best_watts):
+    lines = ["RECENT WELLNESS & SLEEP QUALITY:"]
+    for w in sorted(wellness, key=lambda x: x.get("id", "")):
+        sq = w.get("sleepQuality", "N/A")
+        sleep = round(w["sleepSecs"] / 3600, 1) if w.get("sleepSecs") else "n/a"
+        lines.append(
+            f"- {w.get('id')}: RHR {w.get('restingHR', 'n/a')} | HRV {w.get('hrv', 'n/a')} | "
+            f"Sleep {sleep}h (Quality: {sq}) | CTL {w.get('ctl', 'n/a')} | ATL {w.get('atl', 'n/a')}"
+        )
+
+    if best_watts:
+        lines.append("\nBEST POWER EFFORTS (Last 42 days ceiling):")
+        for p in best_watts:
+            lines.append(f"- {p['label']}: {p['watts']}W")
+
+    if notes:
+        lines.append("\nCOACH NOTES FROM ATHLETE:")
+        for n in notes:
+            lines.append(f"- {n.get('date')}: {n.get('text')}")
+
+    return "\n".join(lines)
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -975,35 +955,53 @@ def analyze():
     try:
         recent_activities, season_activities, wellness, season_wellness = fetch_intervals_data()
         latest_w = wellness[-1] if wellness else {}
-        ctl, atl = latest_w.get("ctl", 0), latest_w.get("atl", 0)
+        ctl = latest_w.get("ctl", 0) or 0
+        atl = latest_w.get("atl", 0) or 0
         tsb = round(ctl - atl, 1)
 
+        weight_entries = [w for w in wellness if w.get("weight")]
+        latest_weight = f"{round(weight_entries[-1]['weight'], 1)}kg" if weight_entries else "n/a"
+
+        sleep_vals = [w["sleepSecs"]/3600 for w in wellness if w.get("sleepSecs")]
+        avg_sleep_hours = round(statistics.mean(sleep_vals), 1) if sleep_vals else None
+
         metrics = {
-            "ctl": round(ctl, 1), "atl": round(atl, 1), "tsb": tsb,
+            "ctl": round(ctl, 1),
+            "atl": round(atl, 1),
+            "tsb": tsb,
             "fitness_zone": "green" if ctl > 80 else "grey",
             "fatigue_zone": "red" if atl / (ctl or 1) > 1.15 else "green",
             "form_zone": "green" if tsb >= 0 else "grey",
             "latest_rhr": latest_w.get("restingHR", "n/a"),
             "latest_hrv": latest_w.get("hrv", "n/a"),
-            "avg_sleep": f"{round(statistics.mean([w['sleepSecs']/3600 for w in wellness if w.get('sleepSecs')]), 1)}h" if wellness else "n/a",
+            "avg_sleep": f"{avg_sleep_hours}h" if avg_sleep_hours else "n/a",
+            "latest_weight": latest_weight,
         }
 
         energy_bank = compute_energy_bank(
-            metrics["form_zone"], metrics["fatigue_zone"], 7.5, latest_w.get("sleepQuality")
+            metrics["form_zone"], metrics["fatigue_zone"], avg_sleep_hours, latest_w.get("sleepQuality")
         )
 
-        data_text = f"Wellness sleep quality Q: {latest_w.get('sleepQuality', 'N/A')}\nRecent activities count: {len(recent_activities)}"
+        recent_trend = compute_recent_trend(wellness, n=5)
+        best_watts = get_best_watts()
+        notes = load_notes()
+
+        data_text = build_data_text(recent_activities, wellness, notes, best_watts)
         analysis = ask_claude(data_text, metrics)
 
         data = {
             **metrics, **analysis, **energy_bank,
-            "recent_trend": [{"weekday": "D1", "tsb": tsb, "zone": "green"}],
-            "health_rings": {"rhr": {"pct": 70, "color": "green"}, "hrv": {"pct": 80, "color": "green"}, "sleep": {"pct": 85, "color": "green"}},
-            "best_watts": [{"label": "5s", "watts": 680, "pct": 100}, {"label": "1m", "watts": 440, "pct": 65}, {"label": "5m", "watts": 340, "pct": 50}],
+            "recent_trend": recent_trend,
+            "health_rings": {
+                "rhr": {"pct": 70, "color": "green"},
+                "hrv": {"pct": 80, "color": "green"},
+                "sleep": {"pct": 85, "color": "green"}
+            },
+            "best_watts": best_watts,
         }
         session["last_data"] = data
     except Exception as e:
-        return render_template_string(HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK, data=None, error=str(e), css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64)
+        return render_template_string(HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK, data=None, error=f"Analysis failed: {str(e)}", css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64)
 
     return redirect(url_for("home"))
 
@@ -1012,9 +1010,15 @@ def ask():
     if not require_login():
         return redirect(url_for("login"))
     question = (request.form.get("question") or "").strip()
+    chat_answer = None
     if question:
         save_note(question)
-    return redirect(url_for("home"))
+        chat_answer = "Noted ✅ — I'll factor this into your next snapshot."
+    return render_template_string(
+        HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
+        data=session.get("last_data"), error=None, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
+        chat_answer=chat_answer
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
