@@ -332,6 +332,7 @@ a { color: var(--white); }
   padding: 14px;
   margin-top: 20px;
   border: 1px solid var(--red);
+  border-radius: 8px;
   background: var(--red);
   color: var(--white);
   font-family: 'Bayon', sans-serif;
@@ -339,6 +340,7 @@ a { color: var(--white); }
   text-transform: uppercase;
   font-size: 16px;
   cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .login-box button:hover, .btn:hover { background: var(--red-dim); }
@@ -447,17 +449,18 @@ h1.page-title {
 .zone-badge {
   display: inline-block;
   margin-top: 8px;
-  padding: 3px 10px;
+  padding: 4px 12px;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-family: 'Bayon', sans-serif;
-  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-weight: 400;
 }
 
-.zone-green { color: var(--green); }
-.zone-grey  { color: var(--grey-zone); }
-.zone-red   { color: var(--red); }
+.zone-green { background: rgba(63,185,95,0.15); color: var(--green); border: 1px solid var(--green); }
+.zone-grey  { background: rgba(138,138,138,0.15); color: var(--grey-zone); border: 1px solid var(--grey-zone); }
+.zone-red   { background: rgba(216,30,44,0.15); color: var(--red); border: 1px solid var(--red); }
 
 .prose-card {
   border: 1px solid var(--white);
@@ -618,7 +621,7 @@ h1.page-title {
 .loading-track {
   display: none;
   width: 100%;
-  height: 6px;
+  height: 10px;
   border: 1px solid var(--white);
   border-radius: 999px;
   margin-top: 14px;
@@ -627,18 +630,11 @@ h1.page-title {
 }
 
 .loading-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
   height: 100%;
-  width: 35%;
-  background: var(--red);
-  animation: loadingSlide 1.1s ease-in-out infinite;
-}
-
-@keyframes loadingSlide {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(380%); }
+  width: 0%;
+  background: linear-gradient(90deg, var(--red-dim), var(--red));
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
 .loading-label {
@@ -1398,6 +1394,7 @@ HOME_PAGE = """
         form.addEventListener('submit', function () {
           var btn = document.getElementById('snapshot-btn');
           var track = document.getElementById('loading-track');
+          var fill = track ? track.querySelector('.loading-fill') : null;
           var label = document.getElementById('loading-label');
           var messages = [
             'Pulling your Intervals.icu data...',
@@ -1416,6 +1413,20 @@ HOME_PAGE = """
             i = (i + 1) % messages.length;
             label.textContent = messages[i];
           }, 3200);
+
+          // Climbs quickly at first, then slows as it approaches 92% - never
+          // hits 100%, since we don't actually know when the request will
+          // finish; the page navigates away once the real response arrives.
+          if (fill) {
+            var pct = 5;
+            fill.style.width = pct + '%';
+            setInterval(function () {
+              if (pct < 92) {
+                pct += (92 - pct) * 0.08;
+                fill.style.width = pct + '%';
+              }
+            }, 250);
+          }
         });
       }
 
