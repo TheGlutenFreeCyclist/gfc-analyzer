@@ -529,7 +529,7 @@ HOME_PAGE = """
         <button type="submit" class="btn display" id="chat-btn" style="margin-top:10px;">Send Note</button>
       </form>
       {% if chat_answer %}
-      <p style="color:var(--green); margin-top:12px;">{{ chat_answer }}</p>
+      <p style="color:var(--green); margin-top:12px; font-weight: 500;">{{ chat_answer }}</p>
       {% endif %}
     </div>
 
@@ -575,12 +575,12 @@ HOME_PAGE = """
       {% endif %}
     </div>
 
-    <details class="recommendation-box" open>
+    <details class="recommendation-box">
       <summary><h3 class="display">Coach's Suggestion</h3></summary>
       <p>{{ data.recommendation }}</p>
     </details>
 
-    <details class="training-tips-box" open>
+    <details class="training-tips-box">
       <summary><h3 class="display">Training Tips</h3></summary>
       <p class="training-tips-text">{{ data.training_tips }}</p>
     </details>
@@ -604,7 +604,7 @@ HOME_PAGE = """
           <div class="zone-badge zone-{{ data.form_zone }} display">{{ data.form_zone }}</div>
         </div>
       </div>
-      <details class="prose-card" open>
+      <details class="prose-card">
         <summary><h3>Training Load</h3></summary>
         <p>{{ data.training_load }}</p>
       </details>
@@ -642,7 +642,7 @@ HOME_PAGE = """
           </div>
         </div>
       </div>
-      <details class="prose-card" open>
+      <details class="prose-card">
         <summary><h3>Fatigue Signals</h3></summary>
         <p>{{ data.fatigue_signals }}</p>
       </details>
@@ -685,11 +685,11 @@ HOME_PAGE = """
           <span>High {{ data.zone_high_pct }}%</span>
         </div>
       </div>
-      <details class="prose-card" open>
+      <details class="prose-card">
         <summary><h3>Training Distribution</h3></summary>
         <p>{{ data.season_distribution }}</p>
       </details>
-      <details class="prose-card" open>
+      <details class="prose-card">
         <summary><h3>Seasonal Outlook</h3></summary>
         <p>{{ data.season_outlook }}</p>
       </details>
@@ -886,6 +886,27 @@ def fetch_intervals_data():
 
     return recent_activities, season_activities, recent_wellness, season_wellness
 
+def percentile(sorted_values, pct):
+    if not sorted_values:
+        return None
+    if len(sorted_values) == 1:
+        return sorted_values[0]
+    k = (len(sorted_values) - 1) * pct
+    f, c = int(k), min(int(k) + 1, len(sorted_values) - 1)
+    return sorted_values[f] + (sorted_values[c] - sorted_values[f]) * (k - f)
+
+def personal_form_thresholds(season_wellness):
+    tsb_values = sorted(w["ctl"] - w["atl"] for w in season_wellness if w.get("ctl") is not None and w.get("atl") is not None)
+    if len(tsb_values) < 14:
+        return None
+    return percentile(tsb_values, 0.33), percentile(tsb_values, 0.67)
+
+def personal_fatigue_thresholds(season_wellness):
+    ratios = sorted(w["atl"] / w["ctl"] for w in season_wellness if w.get("ctl") not in (None, 0) and w.get("atl") is not None)
+    if len(ratios) < 14:
+        return None
+    return percentile(ratios, 0.33), percentile(ratios, 0.67)
+
 def bucket_zone_seconds(zone_seconds):
     n = len(zone_seconds)
     if n == 0:
@@ -915,6 +936,56 @@ def compute_season_stats(season_activities):
         "zone_high_pct": round(100 * high_secs / zone_total) if zone_total else 0,
     }
 
+def last_two_values(wellness, field):
+    vals = [w[field] for w in sorted(wellness, key=lambda x: x.get("id", "")) if w.get(field) is not None]
+    return (vals[-1], vals[-2]) if len(vals) >= 2 else (None, None)
+
+def trend_arrow(current, previous, higher_is_better):
+    if current is None or previous is None or current == previous:
+        return None
+    up = current > previous
+    arrow = "▲" if up else "▼"
+    color = "grey" if higher_is_better is None else ("green" if (up == higher_is_better) else "red")
+    return {"arrow": arrow, "color": color}
+
+def compute_trend_arrows(wellness):
+    rhr_latest, rhr_prev = last_two_values(wellness, "restingHR")
+    hrv_latest, hrv_prev = last_two_values(wellness, "hrv")
+    sleep_latest, sleep_prev = last_two_values(wellness, "sleepSecs")
+    weight_latest, weight_prev = last_two_values(wellness, "weight")
+    return {
+        "rhr": trend_arrow(rhr_latest, rhr_prev, higher_is_better=False),
+        "hrv": trend_arrow(hrv_latest, hrv_prev, higher_is_better=True),
+        "sleep": trend_arrow(sleep_latest, sleep_prev, higher_is_better=True),
+        "weight": trend_arrow(weight_latest, weight_prev, higher_is_better=None),
+    }
+
+def compute_health_rings(latest_rhr, latest_hrv, avg_sleep_hours, trend_arrows):
+    def clamp(v): return max(0, min(100, v))
+    rings = {}
+    if isinstance(latest_rhr, (int, float)):
+        pct = clamp(round(100 - (latest_rhr - 40) / 40 * 100))
+        arrow = trend_arrows.get("rhr")
+        rings["rhr"] = {"pct": pct, "color": arrow["color"] if arrow else "grey"}
+    else:
+        rings["rhr"] = {"pct": 50, "color": "grey"}
+
+    if isinstance(latest_hrv, (int, float)):
+        pct = clamp(round((latest_hrv - 20) / 100 * 100))
+        arrow = trend_arrows.get("hrv")
+        rings["hrv"] = {"pct": pct, "color": arrow["color"] if arrow else "grey"}
+    else:
+        rings["hrv"] = {"pct": 50, "color": "grey"}
+
+    if isinstance(avg_sleep_hours, (int, float)):
+        pct = clamp(round(avg_sleep_hours / 9 * 100))
+        arrow = trend_arrows.get("sleep")
+        rings["sleep"] = {"pct": pct, "color": arrow["color"] if arrow else "grey"}
+    else:
+        rings["sleep"] = {"pct": 50, "color": "grey"}
+
+    return rings
+
 def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours, latest_sleep_quality=None):
     score = 50
     score += {"green": 25, "grey": 0, "red": -25}.get(form_zone, 0)
@@ -926,11 +997,11 @@ def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours, latest_sleep_q
         elif avg_sleep_hours < 6.5:
             score -= 10
 
-    if latest_sleep_quality:
-        sq_str = str(latest_sleep_quality).upper()
-        if "Q1" in sq_str or "GREAT" in sq_str:
+    if latest_sleep_quality is not None:
+        sq_str = str(latest_sleep_quality).strip().upper()
+        if sq_str in ("1", "Q1", "GREAT", "EXCELLENT", "GOOD") or "Q1" in sq_str or "GREAT" in sq_str:
             score += 10
-        elif "Q4" in sq_str or "Q5" in sq_str or "POOR" in sq_str:
+        elif sq_str in ("4", "5", "Q4", "Q5", "POOR", "BAD", "TERRIBLE") or "Q4" in sq_str or "Q5" in sq_str or "POOR" in sq_str:
             score -= 10
 
     score = max(0, min(100, score))
@@ -939,10 +1010,34 @@ def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours, latest_sleep_q
     return {"energy_score": score, "energy_label": label, "energy_zone": zone}
 
 def compute_next_key_days():
-    """Calculate the next 3 consecutive workout days starting strictly TOMORROW."""
+    """Calculate the next 3 consecutive workout days starting TOMORROW."""
     today = date.today()
     upcoming = [today + timedelta(days=i) for i in range(1, 4)]
     return [(d.strftime("%A"), d.strftime("%B %d")) for d in upcoming]
+
+def build_data_text(recent_activities, wellness, season_stats, notes, best_watts):
+    lines = ["WELLNESS & SLEEP QUALITY:"]
+    for w in sorted(wellness, key=lambda x: x.get("id", "")):
+        sq = w.get("sleepQuality", "N/A")
+        sleep = round(w["sleepSecs"] / 3600, 1) if w.get("sleepSecs") else "n/a"
+        lines.append(
+            f"- {w.get('id')}: RHR {w.get('restingHR', 'n/a')} | HRV {w.get('hrv', 'n/a')} | "
+            f"Sleep {sleep}h (Quality: {sq}) | CTL {w.get('ctl', 'n/a')} | ATL {w.get('atl', 'n/a')}"
+        )
+
+    lines.append(f"\nSEASON 90-DAY STATS: Total Hours {season_stats['season_hours']}h, Low {season_stats['zone_low_pct']}%, Mod {season_stats['zone_mod_pct']}%, High {season_stats['zone_high_pct']}%")
+
+    if best_watts:
+        lines.append("\nREAL POWER CURVE (actual best efforts, last 42 days - use these as the ceiling for any power target you prescribe, never exceed them for that duration or shorter):")
+        for p in best_watts:
+            lines.append(f"- {p['label']}: {p['watts']}W")
+
+    if notes:
+        lines.append("\nCOACH NOTES FROM ATHLETE:")
+        for n in notes:
+            lines.append(f"- {n.get('date')}: {n.get('text')}")
+
+    return "\n".join(lines)
 
 def ask_claude(data_text, metrics):
     today = date.today()
@@ -978,6 +1073,34 @@ def ask_claude(data_text, metrics):
         text = text.strip("`").replace("json\n", "", 1)
     return json.loads(text)
 
+def ask_claude_chat(question, notes, current_data):
+    today = date.today()
+    notes_text = "\n".join(f"- {n.get('date')}: {n.get('text')}" for n in notes) or "(none)"
+    snapshot_text = f"CTL={current_data.get('ctl')}, ATL={current_data.get('atl')}, TSB={current_data.get('tsb')}" if current_data else "No snapshot"
+
+    prompt = (
+        f"You are the athlete's cycling coach chat assistant. Today is {today.strftime('%A, %B %d, %Y')}. {ATHLETE_CONTEXT}\n"
+        f"Previous Notes:\n{notes_text}\n"
+        f"Recent Snapshot: {snapshot_text}\n"
+        f"Athlete asked: \"{question}\"\n\n"
+        f"Respond ONLY with valid JSON with keys:\n"
+        f'- "answer": 2-4 sentences helpful response in plain text\n'
+        f'- "remember": A short 3rd-person factual summary sentence if there is an injury, goal, or durable fact to remember, otherwise null.'
+    )
+
+    resp = requests.post(
+        "[https://api.anthropic.com/v1/messages](https://api.anthropic.com/v1/messages)",
+        headers={"x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json"},
+        json={"model": "claude-sonnet-4-6", "max_tokens": 400, "messages": [{"role": "user", "content": prompt}]},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    text = "".join(b.get("text", "") for b in resp.json().get("content", [])).strip()
+    if text.startswith("```"):
+        text = text.strip("`").replace("json\n", "", 1)
+    parsed = json.loads(text)
+    return parsed.get("answer", ""), parsed.get("remember")
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     if not require_login():
@@ -988,6 +1111,13 @@ def analyze():
         latest_w = wellness[-1] if wellness else {}
         ctl, atl = latest_w.get("ctl", 0) or 0, latest_w.get("atl", 0) or 0
         tsb = round(ctl - atl, 1)
+
+        form_thresh = personal_form_thresholds(season_wellness)
+        fatigue_thresh = personal_fatigue_thresholds(season_wellness)
+
+        # Look back for the most recent logged weight entry rather than just today
+        weight_entries = [w for w in wellness if w.get("weight") is not None]
+        latest_weight = round(weight_entries[-1]["weight"], 1) if weight_entries else "n/a"
 
         # 5-day trend with exact day names, real TSB numbers, and bounded visual bar heights
         recent_trend = []
@@ -1003,22 +1133,41 @@ def analyze():
             w_atl = w.get("atl", 0) or 0
             w_tsb = round(w_ctl - w_atl, 1)
             
-            # Map TSB range [-40, +20] into a 10% - 100% bar height
             height_pct = max(10, min(100, round((w_tsb + 40) / 60 * 100)))
-            zone = "green" if w_tsb >= 0 else ("red" if w_tsb < -15 else "grey")
+            
+            # Use personalized form thresholds if available
+            if form_thresh:
+                p33, p67 = form_thresh
+                zone = "green" if w_tsb >= p67 else ("red" if w_tsb <= p33 else "grey")
+            else:
+                zone = "green" if w_tsb >= 0 else ("red" if w_tsb < -15 else "grey")
+
             recent_trend.append({"weekday": day_name, "tsb": w_tsb, "height_pct": height_pct, "zone": zone})
 
         sleep_hours = [w['sleepSecs']/3600 for w in wellness if w.get('sleepSecs')]
         avg_sleep_val = round(statistics.mean(sleep_hours), 1) if sleep_hours else None
 
+        ratio = atl / ctl if ctl else 0
+        if fatigue_thresh:
+            p33_fatigue, p67_fatigue = fatigue_thresh
+            fatigue_zone = "green" if ratio <= p33_fatigue else ("red" if ratio >= p67_fatigue else "grey")
+        else:
+            fatigue_zone = "red" if ratio > 1.15 else "green"
+
+        if form_thresh:
+            p33_form, p67_form = form_thresh
+            form_zone = "green" if tsb >= p67_form else ("red" if tsb <= p33_form else "grey")
+        else:
+            form_zone = "green" if tsb >= 0 else "grey"
+
         metrics = {
-            "weight": round(latest_w.get("weight"), 1) if latest_w.get("weight") else "n/a",
+            "weight": latest_weight,
             "ctl": round(ctl, 1), 
             "atl": round(atl, 1), 
             "tsb": tsb,
             "fitness_zone": "green" if ctl > 80 else "grey",
-            "fatigue_zone": "red" if atl / (ctl or 1) > 1.15 else "green",
-            "form_zone": "green" if tsb >= 0 else "grey",
+            "fatigue_zone": fatigue_zone,
+            "form_zone": form_zone,
             "latest_rhr": latest_w.get("restingHR", "n/a"),
             "latest_hrv": latest_w.get("hrv", "n/a"),
             "avg_sleep": f"{avg_sleep_val}h" if avg_sleep_val else "n/a",
@@ -1031,21 +1180,18 @@ def analyze():
         season_stats = compute_season_stats(season_activities)
         best_watts = get_best_watts()
         notes = load_notes()
-        notes_str = "\n".join([f"- {n['date']}: {n['text']}" for n in notes]) if notes else "None"
 
-        data_text = (
-            f"Weight: {metrics['weight']} kg\n"
-            f"Wellness sleep quality Q: {latest_w.get('sleepQuality', 'N/A')}\n"
-            f"Recent activities count: {len(recent_activities)}\n"
-            f"Season Total Time: {season_stats['season_hours']}h (Low: {season_stats['zone_low_pct']}%, Mod: {season_stats['zone_mod_pct']}%, High: {season_stats['zone_high_pct']}%)\n"
-            f"Athlete notes to coach:\n{notes_str}"
-        )
+        trend_arrows = compute_trend_arrows(wellness)
+        health_rings = compute_health_rings(metrics["latest_rhr"], metrics["latest_hrv"], avg_sleep_val, trend_arrows)
+
+        data_text = build_data_text(recent_activities, wellness, season_stats, notes, best_watts)
         analysis = ask_claude(data_text, metrics)
 
         data = {
             **metrics, **season_stats, **analysis, **energy_bank,
             "recent_trend": recent_trend,
-            "health_rings": {"rhr": {"pct": 70, "color": "green"}, "hrv": {"pct": 80, "color": "green"}, "sleep": {"pct": 85, "color": "green"}},
+            "trend_arrows": trend_arrows,
+            "health_rings": health_rings,
             "best_watts": best_watts,
         }
         session["last_data"] = data
@@ -1059,9 +1205,25 @@ def ask():
     if not require_login():
         return redirect(url_for("login"))
     question = (request.form.get("question") or "").strip()
+    chat_answer = None
+    current_data = session.get("last_data")
     if question:
-        save_note(question)
-    return redirect(url_for("home"))
+        try:
+            notes = load_notes()
+            _reply, remember = ask_claude_chat(question, notes, current_data)
+            if remember:
+                save_note(remember)
+            else:
+                save_note(question)
+            chat_answer = "Noted ✅ — I'll factor this into your next snapshot."
+        except Exception as e:
+            chat_answer = f"Error saving note: {e}"
+
+    return render_template_string(
+        HOME_PAGE, days=DAYS_BACK, season_days=SEASON_DAYS_BACK,
+        data=current_data, error=None, css=BASE_CSS, logo=LOGO_B64, favicon=FAVICON_B64,
+        chat_answer=chat_answer
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=False)
