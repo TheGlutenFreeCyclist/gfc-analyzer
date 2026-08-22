@@ -2188,7 +2188,7 @@ def ask_claude(data_text, metrics):
         },
         json={
             "model": "claude-sonnet-4-6",
-            "max_tokens": 1900,
+            "max_tokens": 2800,
             "messages": [{"role": "user", "content": prompt}],
         },
         timeout=60,
