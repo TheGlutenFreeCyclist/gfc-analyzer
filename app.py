@@ -771,6 +771,31 @@ h1.page-title {
   margin-top: 4px;
 }
 
+.gauge-wrap {
+  position: relative;
+  width: 240px;
+  max-width: 100%;
+  margin: 0 auto 6px auto;
+}
+
+.gauge-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.gauge-needle {
+  transition: transform 0.6s ease-out;
+}
+
+.gauge-score-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
 .mini-ring {
   width: 64px;
   height: 64px;
@@ -1134,8 +1159,15 @@ HOME_PAGE = """
     <div class="energy-bank-card zone-glow-{{ data.energy_zone }}">
       <div class="energy-bank-label display">Energy Bank</div>
       <p class="energy-bank-explainer">A single 0-100 readiness score blending your current Form, Fatigue and recent sleep &mdash; the quickest way to see where you stand right now.</p>
-      <div class="energy-ring zone-ring-{{ data.energy_zone }}" style="--pct: {{ data.energy_score }};">
-        <div class="energy-ring-inner">
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" viewBox="0 0 200 100">
+          <path d="M 12.0,95.0 L 12.1,91.0 L 12.4,86.9 L 12.8,82.9 L 13.5,79.0 L 14.3,75.0 L 15.3,71.1 L 16.5,67.3 L 17.8,63.5 L 19.4,59.7 L 21.1,56.1 L 22.9,52.5 L 25.0,49.0 L 27.2,45.6 L 29.5,42.3 L 32.0,39.2 L 34.6,36.1 L 37.4,33.2 L 40.3,30.4 L 43.3,27.7 L 46.4,25.2 L 49.7,22.8 L 53.0,20.6 L 56.5,18.5 L 60.0,16.6 L 71.9,39.8 L 69.4,41.1 L 66.9,42.6 L 64.5,44.1 L 62.3,45.8 L 60.0,47.6 L 57.9,49.5 L 55.9,51.4 L 53.9,53.5 L 52.1,55.7 L 50.3,57.9 L 48.7,60.2 L 47.1,62.6 L 45.7,65.1 L 44.4,67.6 L 43.2,70.2 L 42.1,72.8 L 41.2,75.5 L 40.3,78.2 L 39.6,80.9 L 39.0,83.7 L 38.6,86.5 L 38.3,89.3 L 38.1,92.2 L 38.0,95.0 Z" fill="var(--red)"/>
+          <path d="M 60.0,16.6 L 63.2,15.1 L 66.3,13.7 L 69.5,12.4 L 72.8,11.3 L 76.1,10.3 L 79.5,9.4 L 82.8,8.7 L 86.2,8.1 L 89.7,7.6 L 93.1,7.3 L 96.5,7.1 L 100.0,7.0 L 103.5,7.1 L 106.9,7.3 L 110.3,7.6 L 113.8,8.1 L 117.2,8.7 L 120.5,9.4 L 123.9,10.3 L 127.2,11.3 L 130.5,12.4 L 133.7,13.7 L 136.8,15.1 L 140.0,16.6 L 128.1,39.8 L 126.0,38.7 L 123.7,37.7 L 121.5,36.8 L 119.2,36.0 L 116.8,35.3 L 114.5,34.7 L 112.1,34.2 L 109.7,33.8 L 107.3,33.4 L 104.9,33.2 L 102.4,33.0 L 100.0,33.0 L 97.6,33.0 L 95.1,33.2 L 92.7,33.4 L 90.3,33.8 L 87.9,34.2 L 85.5,34.7 L 83.2,35.3 L 80.8,36.0 L 78.5,36.8 L 76.3,37.7 L 74.0,38.7 L 71.9,39.8 Z" fill="var(--grey-zone)"/>
+          <path d="M 140.0,16.6 L 143.5,18.5 L 147.0,20.6 L 150.3,22.8 L 153.6,25.2 L 156.7,27.7 L 159.7,30.4 L 162.6,33.2 L 165.4,36.1 L 168.0,39.2 L 170.5,42.3 L 172.8,45.6 L 175.0,49.0 L 177.1,52.5 L 178.9,56.1 L 180.6,59.7 L 182.2,63.5 L 183.5,67.3 L 184.7,71.1 L 185.7,75.0 L 186.5,79.0 L 187.2,82.9 L 187.6,86.9 L 187.9,91.0 L 188.0,95.0 L 162.0,95.0 L 161.9,92.2 L 161.7,89.3 L 161.4,86.5 L 161.0,83.7 L 160.4,80.9 L 159.7,78.2 L 158.8,75.5 L 157.9,72.8 L 156.8,70.2 L 155.6,67.6 L 154.3,65.1 L 152.9,62.6 L 151.3,60.2 L 149.7,57.9 L 147.9,55.7 L 146.1,53.5 L 144.1,51.4 L 142.1,49.5 L 140.0,47.6 L 137.7,45.8 L 135.5,44.1 L 133.1,42.6 L 130.6,41.1 L 128.1,39.8 Z" fill="var(--green)"/>
+          <circle cx="100" cy="95" r="5" fill="var(--white)"/>
+          <line class="gauge-needle" x1="100" y1="95" x2="100" y2="17" stroke="var(--white)" stroke-width="3" stroke-linecap="round" transform="rotate({{ data.needle_angle }} 100 95)"/>
+        </svg>
+        <div class="gauge-score-wrap">
           <div class="energy-bank-score display" data-animate="{{ data.energy_score }}">{{ data.energy_score }}</div>
           <div class="energy-ring-sub">/ 100</div>
         </div>
@@ -1976,7 +2008,14 @@ def compute_energy_bank(form_zone, fatigue_zone, avg_sleep_hours):
     else:
         label, zone = "Drained", "red"
 
-    return {"energy_score": score, "energy_label": label, "energy_zone": zone}
+    # Gauge needle angle: -90deg (score 0, points left) to +90deg (score 100,
+    # points right), rotating around the pivot at SVG coords (100, 95).
+    needle_angle = round((score * 1.8) - 90, 1)
+
+    return {
+        "energy_score": score, "energy_label": label, "energy_zone": zone,
+        "needle_angle": needle_angle,
+    }
 
 
 def compute_metrics(wellness, form_thresholds=None, fatigue_thresholds=None):
