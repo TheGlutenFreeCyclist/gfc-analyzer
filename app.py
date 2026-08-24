@@ -458,9 +458,9 @@ h1.page-title {
   font-weight: 400;
 }
 
-.zone-green { background: rgba(63,185,95,0.15); color: var(--green); border: 1px solid var(--green); }
+.zone-green { background: rgba(63,185,95,0.15); color: var(--green); border: 1px solid var(--green); box-shadow: 0 0 8px rgba(63,185,95,0.5); }
 .zone-grey  { background: rgba(138,138,138,0.15); color: var(--grey-zone); border: 1px solid var(--grey-zone); }
-.zone-red   { background: rgba(216,30,44,0.15); color: var(--red); border: 1px solid var(--red); }
+.zone-red   { background: rgba(216,30,44,0.15); color: var(--red); border: 1px solid var(--red); box-shadow: 0 0 8px rgba(216,30,44,0.5); }
 
 .prose-card {
   border: 1px solid var(--white);
@@ -650,6 +650,7 @@ h1.page-title {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+.dashboard-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0s; }
 .recommendation-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.15s; }
 .training-tips-box { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.25s; }
 .training-section { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; animation-delay: 0.35s; }
@@ -820,6 +821,44 @@ h1.page-title {
   font-family: 'Bayon', sans-serif;
   font-size: 17px;
   color: var(--white);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.gauge-card {
+  border: 1px solid var(--white);
+  border-radius: 12px;
+  padding: 16px 12px;
+  text-align: center;
+  background: var(--panel);
+}
+
+.gauge-card-header {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grey-zone);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.gauge-card-icon {
+  font-size: 14px;
+}
+
+.gauge-card-status {
+  font-family: 'Bayon', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 6px;
 }
 
 .checkin-row {
@@ -1156,7 +1195,9 @@ HOME_PAGE = """
     {% endif %}
 
     {% if data %}
-    <div class="energy-bank-card zone-glow-{{ data.energy_zone }}">
+    <div class="section dashboard-section">
+      <h2 class="section-title display">Dashboard</h2>
+      <div class="energy-bank-card zone-glow-{{ data.energy_zone }}">
       <div class="energy-bank-label display">Energy Bank</div>
       <p class="energy-bank-explainer">A single 0-100 readiness score blending your current Form, Fatigue and recent sleep &mdash; the quickest way to see where you stand right now.</p>
       <div class="gauge-wrap">
@@ -1207,6 +1248,52 @@ HOME_PAGE = """
         </div>
       </div>
       {% endif %}
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="gauge-card">
+          <div class="gauge-card-header"><span class="gauge-card-icon">&#10084;&#65039;</span> Resting HR</div>
+          {% if data.health_rings.rhr %}
+          <div class="mini-ring zone-ring-{{ data.health_rings.rhr.color }}" style="--pct: {{ data.health_rings.rhr.pct }};">
+            <div class="mini-ring-inner">
+              <div class="mini-ring-value">{{ data.latest_rhr }}</div>
+            </div>
+          </div>
+          <div class="gauge-card-status trend-{{ data.health_rings.rhr.color }}">{{ data.health_rings.rhr.status }}</div>
+          {% else %}
+          <div class="stat-value">{{ data.latest_rhr }}</div>
+          {% endif %}
+          {% if data.trend_arrows.rhr %}<span class="trend-arrow trend-{{ data.trend_arrows.rhr.color }}">{{ data.trend_arrows.rhr.arrow }}</span>{% endif %}
+        </div>
+        <div class="gauge-card">
+          <div class="gauge-card-header"><span class="gauge-card-icon">&#128200;</span> HRV</div>
+          {% if data.health_rings.hrv %}
+          <div class="mini-ring zone-ring-{{ data.health_rings.hrv.color }}" style="--pct: {{ data.health_rings.hrv.pct }};">
+            <div class="mini-ring-inner">
+              <div class="mini-ring-value">{{ data.latest_hrv }}</div>
+            </div>
+          </div>
+          <div class="gauge-card-status trend-{{ data.health_rings.hrv.color }}">{{ data.health_rings.hrv.status }}</div>
+          {% else %}
+          <div class="stat-value">{{ data.latest_hrv }}</div>
+          {% endif %}
+          {% if data.trend_arrows.hrv %}<span class="trend-arrow trend-{{ data.trend_arrows.hrv.color }}">{{ data.trend_arrows.hrv.arrow }}</span>{% endif %}
+        </div>
+        <div class="gauge-card">
+          <div class="gauge-card-header"><span class="gauge-card-icon">&#128564;</span> Sleep</div>
+          {% if data.health_rings.sleep %}
+          <div class="mini-ring zone-ring-{{ data.health_rings.sleep.color }}" style="--pct: {{ data.health_rings.sleep.pct }};">
+            <div class="mini-ring-inner">
+              <div class="mini-ring-value">{{ data.avg_sleep }}</div>
+            </div>
+          </div>
+          <div class="gauge-card-status trend-{{ data.health_rings.sleep.color }}">{{ data.health_rings.sleep.status }}</div>
+          {% else %}
+          <div class="stat-value">{{ data.avg_sleep }}</div>
+          {% endif %}
+          {% if data.trend_arrows.sleep %}<span class="trend-arrow trend-{{ data.trend_arrows.sleep.color }}">{{ data.trend_arrows.sleep.arrow }}</span>{% endif %}
+        </div>
+      </div>
     </div>
 
     <details class="recommendation-box">
@@ -1257,42 +1344,21 @@ HOME_PAGE = """
       <div class="stat-row">
         <div class="stat-card">
           <div class="stat-label">Resting HR</div>
-          {% if data.health_rings.rhr %}
-          <div class="mini-ring zone-ring-{{ data.health_rings.rhr.color }}" style="--pct: {{ data.health_rings.rhr.pct }};">
-            <div class="mini-ring-inner">
-              <div class="mini-ring-value">{{ data.latest_rhr }}</div>
-            </div>
+          <div class="stat-value">
+            {{ data.latest_rhr }}{% if data.trend_arrows.rhr %}<span class="trend-arrow trend-{{ data.trend_arrows.rhr.color }}">{{ data.trend_arrows.rhr.arrow }}</span>{% endif %}
           </div>
-          {% else %}
-          <div class="stat-value">{{ data.latest_rhr }}</div>
-          {% endif %}
-          {% if data.trend_arrows.rhr %}<span class="trend-arrow trend-{{ data.trend_arrows.rhr.color }}">{{ data.trend_arrows.rhr.arrow }}</span>{% endif %}
         </div>
         <div class="stat-card">
           <div class="stat-label">HRV</div>
-          {% if data.health_rings.hrv %}
-          <div class="mini-ring zone-ring-{{ data.health_rings.hrv.color }}" style="--pct: {{ data.health_rings.hrv.pct }};">
-            <div class="mini-ring-inner">
-              <div class="mini-ring-value">{{ data.latest_hrv }}</div>
-            </div>
+          <div class="stat-value">
+            {{ data.latest_hrv }}{% if data.trend_arrows.hrv %}<span class="trend-arrow trend-{{ data.trend_arrows.hrv.color }}">{{ data.trend_arrows.hrv.arrow }}</span>{% endif %}
           </div>
-          {% else %}
-          <div class="stat-value">{{ data.latest_hrv }}</div>
-          {% endif %}
-          {% if data.trend_arrows.hrv %}<span class="trend-arrow trend-{{ data.trend_arrows.hrv.color }}">{{ data.trend_arrows.hrv.arrow }}</span>{% endif %}
         </div>
         <div class="stat-card">
           <div class="stat-label">Avg Sleep</div>
-          {% if data.health_rings.sleep %}
-          <div class="mini-ring zone-ring-{{ data.health_rings.sleep.color }}" style="--pct: {{ data.health_rings.sleep.pct }};">
-            <div class="mini-ring-inner">
-              <div class="mini-ring-value">{{ data.avg_sleep }}</div>
-            </div>
+          <div class="stat-value">
+            {{ data.avg_sleep }}{% if data.trend_arrows.sleep %}<span class="trend-arrow trend-{{ data.trend_arrows.sleep.color }}">{{ data.trend_arrows.sleep.arrow }}</span>{% endif %}
           </div>
-          {% else %}
-          <div class="stat-value">{{ data.avg_sleep }}</div>
-          {% endif %}
-          {% if data.trend_arrows.sleep %}<span class="trend-arrow trend-{{ data.trend_arrows.sleep.color }}">{{ data.trend_arrows.sleep.arrow }}</span>{% endif %}
         </div>
         <div class="stat-card">
           <div class="stat-label">Weight</div>
@@ -1927,22 +1993,28 @@ def compute_health_rings(latest_rhr, latest_hrv, avg_sleep_hours, trend_arrows):
     def clamp(v):
         return max(0, min(100, v))
 
+    def status_word(color):
+        return {"green": "Good", "grey": "Typical", "red": "Low"}.get(color, "Typical")
+
     rings = {}
 
     if isinstance(latest_rhr, (int, float)):
         pct = clamp(round(100 - (latest_rhr - 40) / (80 - 40) * 100))
         arrow = trend_arrows.get("rhr")
-        rings["rhr"] = {"pct": pct, "color": arrow["color"] if arrow else "grey"}
+        color = arrow["color"] if arrow else "grey"
+        rings["rhr"] = {"pct": pct, "color": color, "status": status_word(color)}
 
     if isinstance(latest_hrv, (int, float)):
         pct = clamp(round((latest_hrv - 20) / (120 - 20) * 100))
         arrow = trend_arrows.get("hrv")
-        rings["hrv"] = {"pct": pct, "color": arrow["color"] if arrow else "grey"}
+        color = arrow["color"] if arrow else "grey"
+        rings["hrv"] = {"pct": pct, "color": color, "status": status_word(color)}
 
     if isinstance(avg_sleep_hours, (int, float)):
         pct = clamp(round(avg_sleep_hours / 9 * 100))
         arrow = trend_arrows.get("sleep")
-        rings["sleep"] = {"pct": pct, "color": arrow["color"] if arrow else "grey"}
+        color = arrow["color"] if arrow else "grey"
+        rings["sleep"] = {"pct": pct, "color": color, "status": status_word(color)}
 
     return rings
 
